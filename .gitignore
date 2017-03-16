@@ -1,0 +1,6 @@
+.vs
+*.nupkg
+bin
+obj
+**/packages/*
+!**/packages/build/
