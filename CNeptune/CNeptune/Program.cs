@@ -22,10 +22,14 @@ namespace CNeptune
 
         static private void Manage(AssemblyDefinition assembly)
         {
-            var _attribute = new CustomAttribute(assembly.MainModule.Import(typeof(InternalsVisibleToAttribute).GetConstructor(new Type[] { typeof(string) })));
-            _attribute.ConstructorArguments.Add(new CustomAttributeArgument(assembly.MainModule.Import(typeof(string)), "<CNeptune>, PublicKey=0024000004800000940000000602000000240000525341310004000001000100FDFFBDC6C9DF8110B78F662F9D6DE8C7E8F2C2A654834E839DF364B440C5DCDAB6C905136A1B2E0CBC5281737F84AD2941E18626022DA7733243AF83CC17B14EA0752E867C5F154C30186426B3FDFB07906458ADB10F0F0CE163E254FDA407366B35BD8708B984B2FCA1F35F8B397565EE56539441AB52A8D9EC02F7204CB8B1"));
+            var _module = assembly.MainModule;
+            var _type = _module.GetType(null, "<Module>");
+            var _neptune = new FieldDefinition("<Neptune>", FieldAttributes.Private | FieldAttributes.Static | FieldAttributes.SpecialName, _module.Import(typeof(System.Reflection.Emit.ModuleBuilder)));
+            _type.Fields.Add(_neptune);
+            var _attribute = new CustomAttribute(_module.Import(typeof(InternalsVisibleToAttribute).GetConstructor(new Type[] { typeof(string) })));
+            _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(string)), string.Concat(assembly.Name.Name, ".<Neptune>")));
             assembly.CustomAttributes.Add(_attribute);
-            foreach (var _module in assembly.Modules.ToArray()) { Program.Manage(_module); }
+            Program.Manage(_module);
         }
 
         static private void Manage(ModuleDefinition module)
