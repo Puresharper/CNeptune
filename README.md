@@ -16,8 +16,15 @@ CNeptune is an util to rewrite .net assembly to inject all the needs to control 
 - Mocking & tests
 - Simplify existing design pattern
 
-## Example
+## Example of injection
 - Rewrite .net assembly by specifying path
 ```
 neptune.exe "C:\...\Assembly.dll"
 ```
+- Rewrite .net assembly by specifying project and configuration
+```
+neptune.exe "C:\...\Project.csproj" "Debug"
+```
+
+## Example of usage
+under specification... coming soon!
