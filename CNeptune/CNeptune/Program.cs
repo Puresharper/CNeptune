@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using System.Runtime.CompilerServices;
 
 namespace CNeptune
 {
@@ -21,6 +22,9 @@ namespace CNeptune
 
         static private void Manage(AssemblyDefinition assembly)
         {
+            var _attribute = new CustomAttribute(assembly.MainModule.Import(typeof(InternalsVisibleToAttribute).GetConstructor(new Type[] { typeof(string) })));
+            _attribute.ConstructorArguments.Add(new CustomAttributeArgument(assembly.MainModule.Import(typeof(string)), "<CNeptune>, PublicKey=0024000004800000940000000602000000240000525341310004000001000100FDFFBDC6C9DF8110B78F662F9D6DE8C7E8F2C2A654834E839DF364B440C5DCDAB6C905136A1B2E0CBC5281737F84AD2941E18626022DA7733243AF83CC17B14EA0752E867C5F154C30186426B3FDFB07906458ADB10F0F0CE163E254FDA407366B35BD8708B984B2FCA1F35F8B397565EE56539441AB52A8D9EC02F7204CB8B1"));
+            assembly.CustomAttributes.Add(_attribute);
             foreach (var _module in assembly.Modules.ToArray()) { Program.Manage(_module); }
         }
 
@@ -33,38 +37,48 @@ namespace CNeptune
         {
             if (type.IsInterface || type.IsValueType) { return; }
             if (type.Name == "<Module>") { return; }
+            foreach (var _nested in type.NestedTypes) { Program.Manage(_nested); }
             if (type.Attributes.HasFlag(TypeAttributes.NestedPrivate)) { type.Attributes = (type.Attributes & ~TypeAttributes.NestedPrivate) | TypeAttributes.NestedAssembly; }
             else if (type.Attributes.HasFlag(TypeAttributes.NestedFamily)) { type.Attributes = (type.Attributes & ~TypeAttributes.NestedFamily) | TypeAttributes.NestedFamORAssem; }
+            foreach (var _field in type.Fields.ToArray()) { Program.Manage(_field); }
             var _module = type.Module;
-            var _type = new TypeDefinition(null, string.Concat("<Neptune>"), TypeAttributes.Class | TypeAttributes.NestedPublic | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName, _module.Import(typeof(object)));
+            var _neptune = new TypeDefinition(null, string.Concat("<Neptune>"), TypeAttributes.Class | TypeAttributes.NestedAssembly | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName, _module.Import(typeof(object)));
             var _attribute = new CustomAttribute(_module.Import(typeof(EditorBrowsableAttribute).GetConstructor(new Type[] { typeof(EditorBrowsableState) })));
             _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(EditorBrowsableState)), EditorBrowsableState.Never));
-            _type.CustomAttributes.Add(_attribute);
+            _neptune.CustomAttributes.Add(_attribute);
             _attribute = new CustomAttribute(_module.Import(typeof(BrowsableAttribute).GetConstructor(new Type[] { typeof(bool) })));
             _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(bool)), false));
-            _type.CustomAttributes.Add(_attribute);
+            _neptune.CustomAttributes.Add(_attribute);
             var methodAttributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName;
             var _ctor = new MethodDefinition(".ctor", methodAttributes, _module.Import(typeof(void)));
             var _body = _ctor.Body.GetILProcessor();
             _body.Append(_body.Create(OpCodes.Ldarg_0));
             _body.Append(_body.Create(OpCodes.Call, _module.Import(typeof(object).GetConstructor(Type.EmptyTypes))));
             _body.Append(_body.Create(OpCodes.Ret));
-            _type.Methods.Add(_ctor);
-            var _field = new FieldDefinition("Authority", FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.SpecialName, _type);
-            _type.Fields.Add(_field);
+            _neptune.Methods.Add(_ctor);
+            var _authority = new FieldDefinition("Authority", FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.SpecialName, _neptune);
+            _neptune.Fields.Add(_authority);
             var _cctor = new MethodDefinition(".cctor", MethodAttributes.Static | MethodAttributes.Assembly | MethodAttributes.HideBySig | MethodAttributes.SpecialName, _module.Import(typeof(void)));
             _body = _cctor.Body.GetILProcessor();
             _body.Append(_body.Create(OpCodes.Newobj, _ctor));
-            _body.Append(_body.Create(OpCodes.Stsfld, _field));
+            _body.Append(_body.Create(OpCodes.Stsfld, _authority));
             _body.Append(_body.Create(OpCodes.Ret));
-            _type.Methods.Add(_cctor);
-            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_type, _field, _method); }
-            type.NestedTypes.Add(_type);
+            _neptune.Methods.Add(_cctor);
+            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_neptune, _authority, _method); }
+            type.NestedTypes.Add(_neptune);
         }
 
-        static private void Manage(TypeDefinition type, FieldDefinition field, MethodDefinition method)
+        static private void Manage(FieldDefinition field)
+        {
+            if (field.Attributes.HasFlag(FieldAttributes.Private)) { field.Attributes = (field.Attributes & ~FieldAttributes.Private) | FieldAttributes.Assembly; }
+            else if (field.Attributes.HasFlag(FieldAttributes.Family)) { field.Attributes = (field.Attributes & ~FieldAttributes.Family) | FieldAttributes.FamORAssem; }
+        }
+
+        static private void Manage(TypeDefinition neptune, FieldDefinition authority, MethodDefinition method)
         {
             if (method.IsConstructor && method.IsStatic) { return; }
+            if (method.Attributes.HasFlag(MethodAttributes.Private)) { method.Attributes = (method.Attributes & ~MethodAttributes.Private) | MethodAttributes.Assembly; }
+            else if (method.Attributes.HasFlag(MethodAttributes.Family)) { method.Attributes = (method.Attributes & ~MethodAttributes.Family) | MethodAttributes.FamORAssem; }
             var _gateway = new MethodDefinition(string.Concat("<", method.Name, ">"), MethodAttributes.Virtual | MethodAttributes.Public | MethodAttributes.SpecialName, method.ReturnType);
             var _authentic = new MethodDefinition(string.Concat("<<", method.Name, ">>"), MethodAttributes.Static | MethodAttributes.Assembly, method.ReturnType);
             if (method.IsStatic)
@@ -92,7 +106,7 @@ namespace CNeptune
                     _body.Append(_body.Create(OpCodes.Ret));
                     method.Body = new MethodBody(method);
                     _body = method.Body.GetILProcessor();
-                    _body.Append(_body.Create(OpCodes.Ldsfld, field));
+                    _body.Append(_body.Create(OpCodes.Ldsfld, authority));
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -137,7 +151,7 @@ namespace CNeptune
                     _body.Append(_body.Create(OpCodes.Ret));
                     method.Body = new MethodBody(method);
                     _body = method.Body.GetILProcessor();
-                    _body.Append(_body.Create(OpCodes.Ldsfld, field));
+                    _body.Append(_body.Create(OpCodes.Ldsfld, authority));
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -182,7 +196,7 @@ namespace CNeptune
                     _body.Append(_body.Create(OpCodes.Ret));
                     method.Body = new MethodBody(method);
                     _body = method.Body.GetILProcessor();
-                    _body.Append(_body.Create(OpCodes.Ldsfld, field));
+                    _body.Append(_body.Create(OpCodes.Ldsfld, authority));
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -229,7 +243,7 @@ namespace CNeptune
                     _body.Append(_body.Create(OpCodes.Ret));
                     method.Body = new MethodBody(method);
                     _body = method.Body.GetILProcessor();
-                    _body.Append(_body.Create(OpCodes.Ldsfld, field));
+                    _body.Append(_body.Create(OpCodes.Ldsfld, authority));
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -247,8 +261,8 @@ namespace CNeptune
                     _body.Append(_body.Create(OpCodes.Ret));
                 }
             }
-            type.Methods.Add(_gateway);
-            type.Methods.Add(_authentic);
+            neptune.Methods.Add(_gateway);
+            neptune.Methods.Add(_authentic);
         }
     }
 }
