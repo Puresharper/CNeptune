@@ -2,34 +2,76 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime;
+using System.Runtime.CompilerServices;
+using System.Xml;
+using System.Xml.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using System.Runtime.CompilerServices;
 
 namespace CNeptune
 {
     static public class Program
     {
-        static public void Main(string[] args)
+        private const string Neptune = "<Neptune>";
+        private const string Module = "<Module>";
+
+        static public void Main(string[] arguments)
         {
-            var _location = args[0];
-            var _resolver = new DefaultAssemblyResolver();
-            _resolver.AddSearchDirectory(Path.GetDirectoryName(_location));
-            var _assembly = AssemblyDefinition.ReadAssembly(_location, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
-            Program.Manage(_assembly);
-            _assembly.Write(Path.GetFileName(_location), new WriterParameters { WriteSymbols = true });
+            if (arguments == null) { throw new ArgumentNullException(); }
+            switch (arguments.Length)
+            {
+                case 1:
+                    Program.Manage(arguments[0]);
+                    break;
+                case 2:
+                    var _directory = string.Concat(Path.GetDirectoryName(arguments[0]), @"\");
+                    var _document = XDocument.Load(arguments[0]);
+                    var _namespace = _document.Root.Name.Namespace;
+                    var _name = _document.Descendants(_namespace.GetName("AssemblyName")).Single().Value;
+                    foreach (var _element in _document.Descendants(_namespace.GetName("OutputPath")))
+                    {
+                        foreach (var _attribute in _element.Parent.Attributes())
+                        {
+                            if (_attribute.Value.Contains(arguments[1]))
+                            {
+                                Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll"));
+                                return;
+                            }
+                        }
+                    }
+                    break;
+                default: throw new ArgumentOutOfRangeException();
+            }
         }
 
-        static private void Manage(AssemblyDefinition assembly)
+        static private void Manage(string assembly)
         {
-            var _module = assembly.MainModule;
-            var _type = _module.GetType(null, "<Module>");
-            var _neptune = new FieldDefinition("<Neptune>", FieldAttributes.Private | FieldAttributes.Static | FieldAttributes.SpecialName, _module.Import(typeof(System.Reflection.Emit.ModuleBuilder)));
+            var _resolver = new DefaultAssemblyResolver();
+            _resolver.AddSearchDirectory(Path.GetDirectoryName(assembly));
+            var _assembly = AssemblyDefinition.ReadAssembly(assembly, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
+            var _module = _assembly.MainModule;
+            if (_assembly.CustomAttributes.Any(_Attribute => object.Equals(_Attribute.ConstructorArguments.First().Value, Program.Neptune))) { return; }
+
+            //TODO Auto-Mod-lookup
+            var _type = _module.GetType(null, Program.Module);
+            var _neptune = new FieldDefinition(Program.Neptune, FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.SpecialName, _module.Import(typeof(System.Reflection.Emit.ModuleBuilder)));
             _type.Fields.Add(_neptune);
+
+            //CREATE METHOD to find trusted module builder
+            //var a = typeof(ClassLibrary2.Class1);
+            //var m = AppDomain.CurrentDomain.DefineDynamicAssembly(new System.Reflection.AssemblyName("dd"), System.Reflection.Emit.AssemblyBuilderAccess.Run).DefineDynamicModule("blabla");
+            //var t = m.DefineType("gg", System.Reflection.TypeAttributes.Class | System.Reflection.TypeAttributes.Public, typeof(object));
+            //t.DefineField("Module", typeof(ModuleBuilder), System.Reflection.FieldAttributes.Static | System.Reflection.FieldAttributes.Public);
+            //var gg = t.CreateType();
+            //gg.GetField("Module").SetValue(null, m);
+
             var _attribute = new CustomAttribute(_module.Import(typeof(InternalsVisibleToAttribute).GetConstructor(new Type[] { typeof(string) })));
-            _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(string)), string.Concat(assembly.Name.Name, ".<Neptune>")));
-            assembly.CustomAttributes.Add(_attribute);
+            _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(string)), Program.Neptune));
+            _assembly.CustomAttributes.Add(_attribute);
             Program.Manage(_module);
+            _assembly.Write(assembly, new WriterParameters { WriteSymbols = true });
         }
 
         static private void Manage(ModuleDefinition module)
@@ -40,13 +82,13 @@ namespace CNeptune
         static private void Manage(TypeDefinition type)
         {
             if (type.IsInterface || type.IsValueType) { return; }
-            if (type.Name == "<Module>") { return; }
+            if (type.Name == Program.Module) { return; }
             foreach (var _nested in type.NestedTypes) { Program.Manage(_nested); }
             if (type.Attributes.HasFlag(TypeAttributes.NestedPrivate)) { type.Attributes = (type.Attributes & ~TypeAttributes.NestedPrivate) | TypeAttributes.NestedAssembly; }
             else if (type.Attributes.HasFlag(TypeAttributes.NestedFamily)) { type.Attributes = (type.Attributes & ~TypeAttributes.NestedFamily) | TypeAttributes.NestedFamORAssem; }
             foreach (var _field in type.Fields.ToArray()) { Program.Manage(_field); }
             var _module = type.Module;
-            var _neptune = new TypeDefinition(null, string.Concat("<Neptune>"), TypeAttributes.Class | TypeAttributes.NestedAssembly | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName, _module.Import(typeof(object)));
+            var _neptune = new TypeDefinition(null, string.Concat(Program.Neptune), TypeAttributes.Class | TypeAttributes.NestedAssembly | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName, _module.Import(typeof(object)));
             var _attribute = new CustomAttribute(_module.Import(typeof(EditorBrowsableAttribute).GetConstructor(new Type[] { typeof(EditorBrowsableState) })));
             _attribute.ConstructorArguments.Add(new CustomAttributeArgument(_module.Import(typeof(EditorBrowsableState)), EditorBrowsableState.Never));
             _neptune.CustomAttributes.Add(_attribute);
