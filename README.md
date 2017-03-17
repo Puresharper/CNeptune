@@ -25,6 +25,7 @@ neptune.exe "C:\...\Assembly.dll"
 ```
 neptune.exe "C:\...\Project.csproj" "Debug"
 ```
+- Rewrite is automatically done after compilation by adding CNeptune nuget package : https://www.nuget.org/packages/CNeptune
 
 ## Example of usage
 under specification... coming soon!
