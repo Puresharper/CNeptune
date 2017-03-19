@@ -66,8 +66,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Mono\Cecil\__MethodDefinition.cs" />
+    <Compile Include="Mono\Cecil\__FieldDefinition.cs" />
+    <Compile Include="Mono\Cecil\__ModuleDefinition.cs" />
+    <Compile Include="Mono\Cecil\__AssemblyDefinition.cs" />
+    <Compile Include="Mono\Cecil\__MethodBody.cs" />
+    <Compile Include="Mono\Cecil\__TypeDefinition.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="System\Argument.cs" />
+    <Compile Include="System\Metadata.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CNeptune.snk" />
@@ -76,6 +84,7 @@
     </None>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
