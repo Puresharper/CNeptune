@@ -1,6 +1,7 @@
 .vs
-*.user
 *.nupkg
+*.suo
+*.user
 bin
 obj
 **/packages/*
