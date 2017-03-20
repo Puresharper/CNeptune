@@ -21,7 +21,7 @@ namespace Mono.Cecil
         {
             var _constructor = (expression.Body as NewExpression).Constructor;
             var _attribute = new CustomAttribute(assembly.MainModule.Import(_constructor));
-            foreach (var _argument in (expression.Body as NewExpression).Arguments) { _attribute.ConstructorArguments.Add(new CustomAttributeArgument(assembly.MainModule.Import(_argument.Type), (_argument as ConstantExpression).Value)); }
+            foreach (var _argument in (expression.Body as NewExpression).Arguments) { _attribute.ConstructorArguments.Add(new CustomAttributeArgument(assembly.MainModule.Import(_argument.Type), Expression.Lambda<Func<object>>(Expression.Convert(_argument, Metadata<object>.Type)).Compile()())); }
             assembly.CustomAttributes.Add(_attribute);
             return _attribute;
         }
