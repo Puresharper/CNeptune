@@ -129,7 +129,7 @@ namespace CNeptune
                             default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[_index]); break;
                         }
                     }
-                    method.Body.Emit(OpCodes.Call, _gateway);
+                    method.Body.Emit(OpCodes.Callvirt, _gateway);
                     method.Body.Emit(OpCodes.Ret);
                 }
                 else
@@ -174,7 +174,7 @@ namespace CNeptune
                     }
                     _method = new GenericInstanceMethod(_gateway);
                     foreach (var _parameter in method.GenericParameters) { _method.GenericArguments.Add(_parameter); }
-                    method.Body.Emit(OpCodes.Call, _method);
+                    method.Body.Emit(OpCodes.Callvirt, _method);
                     method.Body.Emit(OpCodes.Ret);
                 }
             }
@@ -215,7 +215,7 @@ namespace CNeptune
                             default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[_index]); break;
                         }
                     }
-                    method.Body.Emit(OpCodes.Call, _gateway);
+                    method.Body.Emit(OpCodes.Callvirt, _gateway);
                     method.Body.Emit(OpCodes.Ret);
                 }
                 else
@@ -262,7 +262,7 @@ namespace CNeptune
                     }
                     _method = new GenericInstanceMethod(_gateway);
                     foreach (var _parameter in method.GenericParameters) { _method.GenericArguments.Add(_parameter); }
-                    method.Body.Emit(OpCodes.Call, _method);
+                    method.Body.Emit(OpCodes.Callvirt, _method);
                     method.Body.Emit(OpCodes.Ret);
                 }
             }
