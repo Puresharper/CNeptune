@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using Mono;
 using Mono.Cecil;
-using System.Diagnostics;
 
 namespace Mono.Cecil
 {
@@ -50,6 +50,15 @@ namespace Mono.Cecil
         static public MethodDefinition Method(this TypeDefinition type, string name, MethodAttributes attributes, Type @return)
         {
             var _method = new MethodDefinition(name, attributes, type.Module.Import(@return));
+            type.Methods.Add(_method);
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
+            return _method;
+        }
+
+        static public MethodDefinition Method(this TypeDefinition type, string name, MethodAttributes attributes)
+        {
+            var _method = new MethodDefinition(name, attributes, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
             _method.Attribute<CompilerGeneratedAttribute>();
             _method.Attribute<DebuggerHiddenAttribute>();

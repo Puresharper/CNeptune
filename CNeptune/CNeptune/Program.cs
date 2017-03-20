@@ -15,6 +15,8 @@ namespace CNeptune
         private const string Neptune = "<Neptune>";
         private const string Module = "<Module>";
         private const string Authority = "<Authority>";
+        private const string Inject = "<Inject>";
+        private const string Authentic = "<Authentic>";
 
         static public void Main(string[] arguments)
         {
@@ -66,6 +68,42 @@ namespace CNeptune
             _cctor.Body.Emit(OpCodes.Call, Metadata<System.Reflection.Emit.AssemblyBuilder>.Method(_AssemblyBuilder => _AssemblyBuilder.DefineDynamicModule(Argument<string>.Value, Argument<bool>.Value)));
             _cctor.Body.Emit(OpCodes.Stsfld, _gateway.Field<System.Reflection.Emit.ModuleBuilder>(Program.Module, FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.SpecialName));
             _cctor.Body.Emit(OpCodes.Ret);
+            var _inject = _gateway.Method(Program.Inject, MethodAttributes.Static | MethodAttributes.Public);
+            _inject.Parameters.Add(new ParameterDefinition("method", ParameterAttributes.None, _module.Import(typeof(System.Reflection.Emit.DynamicMethod))));
+
+            //TODO !
+            //var gg = find original method by name
+            //var type = mod.DefineType(Guid.NewGuid().ToString("N"), System.Reflection.TypeAttributes.Public | System.Reflection.TypeAttributes.Class, baseType);
+            //var gg1 = t.DefineMethod(gg.Name, System.Reflection.MethodAttributes.Public | System.Reflection.MethodAttributes.Virtual | System.Reflection.MethodAttributes.HideBySig | System.Reflection.MethodAttributes.NewSlot | System.Reflection.MethodAttributes.ReuseSlot, gg.ReturnType, gg.GetParameters().Select(p => p.ParameterType).ToArray());
+            //var body = gg1.GetILGenerator();
+            // //emit all parameter but not ldarg_0! (check input method parameter count)
+            //body.Emit(OpCodes.Ldarg_1);
+            //body.Emit(OpCodes.Ldarg_2);
+            //body.Emit(OpCodes.Ldarg_3);
+            //body.Emit(OpCodes.ldc_I4? pointer); //swicth on Inptr.size
+            //body.EmitCalli(OpCodes.Calli, System.Reflection.CallingConventions.Standard, typeof(int), Type.EmptyTypes, null);
+            //body.Emit(OpCodes.Ret);
+            //t.DefineMethodOverride(gg1, gg);
+            //var ght = t.CreateType();
+            //var nnn = ght.GetMethod(gg.Name);
+            //RuntimeHelpers.PrepareMethod(nnn.MethodHandle);
+            //f.SetValue(null, Activator.CreateInstance(ght));
+
+
+            _inject.Body.Emit(OpCodes.Ret);
+
+
+
+            var _authentic = _gateway.Method<System.Reflection.MethodBase>(Program.Authentic, MethodAttributes.Static | MethodAttributes.Public);
+            _authentic.Parameters.Add(new ParameterDefinition("method", ParameterAttributes.None, _module.Import(typeof(System.Reflection.MethodBase))));
+
+            //TODO!
+
+            _authentic.Body.Emit(OpCodes.Ldnull);
+            _authentic.Body.Emit(OpCodes.Ret);
+
+
+
             foreach (var _type in _module.GetTypes().ToArray()) { Program.Manage(_gateway, _type); }
             _assembly.Write(assembly, new WriterParameters { WriteSymbols = true });
         }
