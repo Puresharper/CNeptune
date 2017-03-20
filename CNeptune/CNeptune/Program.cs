@@ -77,6 +77,7 @@ namespace CNeptune
             if (authentic.Name == Program.Neptune) { return; }
             var _authentic = authentic.Type(string.Concat(Program.Neptune), TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.NestedAssembly | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
             var _gateway = gateway.Type(string.Concat("<", authentic.Identity(), ">"), TypeAttributes.Class | TypeAttributes.NestedPublic | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
+            foreach (var _parameter in authentic.GenericParameters) { _gateway.GenericParameters.Add(_parameter.Copy(_gateway)); }
             var _ctor = _gateway.Constructor();
             _ctor.Body.Emit(OpCodes.Ldarg_0);
             _ctor.Body.Emit(OpCodes.Call, Metadata.Constructor(() => new object()));
@@ -136,8 +137,8 @@ namespace CNeptune
                 {
                     foreach (var _parameter in method.GenericParameters)
                     {
-                        _gateway.GenericParameters.Add(new GenericParameter(_parameter.Name, _gateway));
-                        _authentic.GenericParameters.Add(new GenericParameter(_parameter.Name, _authentic));
+                        _gateway.GenericParameters.Add(_parameter.Copy(_gateway));
+                        _authentic.GenericParameters.Add(_parameter.Copy(_authentic));
                     }
                     foreach (var _parameter in method.Parameters)
                     {
@@ -222,8 +223,8 @@ namespace CNeptune
                 {
                     foreach (var _parameter in method.GenericParameters)
                     {
-                        _gateway.GenericParameters.Add(new GenericParameter(_parameter.Name, _gateway));
-                        _authentic.GenericParameters.Add(new GenericParameter(_parameter.Name, _authentic));
+                        _gateway.GenericParameters.Add(_parameter.Copy(_gateway));
+                        _authentic.GenericParameters.Add(_parameter.Copy(_authentic));
                     }
                     _authentic.Parameters.Add(new ParameterDefinition(method.DeclaringType));
                     _gateway.Parameters.Add(new ParameterDefinition(method.DeclaringType));

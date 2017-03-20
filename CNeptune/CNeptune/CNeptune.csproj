@@ -66,6 +66,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Mono\Cecil\__GenericParameter.cs" />
     <Compile Include="Mono\Cecil\__MethodDefinition.cs" />
     <Compile Include="Mono\Cecil\__FieldDefinition.cs" />
     <Compile Include="Mono\Cecil\__ModuleDefinition.cs" />
