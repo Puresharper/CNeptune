@@ -42,6 +42,11 @@ namespace Mono.Cecil
             body.Instructions.Add(Instruction.Create(instruction, type));
         }
 
+        static public void Emit(this MethodBody body, OpCode instruction, Type type)
+        {
+            body.Instructions.Add(Instruction.Create(instruction, body.Method.Module.Import(type)));
+        }
+
         static public void Emit(this MethodBody body, OpCode instruction, MethodReference method)
         {
             body.Instructions.Add(Instruction.Create(instruction, method));

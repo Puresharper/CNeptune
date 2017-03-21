@@ -42,8 +42,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, @return);
             type.Methods.Add(_method);
-            //_method.Attribute<CompilerGeneratedAttribute>();
-            //_method.Attribute<DebuggerHiddenAttribute>();
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -51,8 +51,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.Import(@return));
             type.Methods.Add(_method);
-            //_method.Attribute<CompilerGeneratedAttribute>();
-            //_method.Attribute<DebuggerHiddenAttribute>();
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -60,8 +60,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
-            //_method.Attribute<CompilerGeneratedAttribute>();
-            //_method.Attribute<DebuggerHiddenAttribute>();
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -69,8 +69,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.Import(typeof(T)));
             type.Methods.Add(_method);
-            //_method.Attribute<CompilerGeneratedAttribute>();
-            //_method.Attribute<DebuggerHiddenAttribute>();
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
