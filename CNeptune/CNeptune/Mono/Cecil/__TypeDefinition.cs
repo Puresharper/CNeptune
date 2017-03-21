@@ -114,19 +114,9 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(".cctor", MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
-            //_method.Attribute<CompilerGeneratedAttribute>();
-            //_method.Attribute<DebuggerHiddenAttribute>();
+            _method.Attribute<CompilerGeneratedAttribute>();
+            _method.Attribute<DebuggerHiddenAttribute>();
             return _method;
-        }
-
-        static public string Identity(this TypeDefinition type)
-        {
-            if (type.DeclaringType == null)
-            {
-                if (string.IsNullOrEmpty(type.Namespace)) { return string.Concat("<", type.Name, ">"); }
-                return string.Concat(string.Concat(type.Namespace.Split('.').Select(_Namespace => string.Concat("<", _Namespace, ">"))), "<", type.Name, ">");
-            }
-            return string.Concat(type.DeclaringType.Identity(), "<", type.Name, ">");
         }
     }
 }
