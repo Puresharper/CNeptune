@@ -2,6 +2,8 @@
 using Mono;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Collections;
+using Mono.Collections.Generic;
 
 namespace Mono.Cecil
 {
@@ -12,9 +14,32 @@ namespace Mono.Cecil
             body.Instructions.Add(Instruction.Create(instruction));
         }
 
+        static public void Emit(this MethodBody body, OpCode instruction, VariableDefinition variable)
+        {
+            body.Instructions.Add(Instruction.Create(instruction, variable));
+        }
+
         static public void Emit(this MethodBody body, OpCode instruction, System.Reflection.MethodInfo method)
         {
             body.Instructions.Add(Instruction.Create(instruction, body.Method.DeclaringType.Module.Import(method)));
+        }
+
+        static public void Emit(this MethodBody body, OpCode instruction, TypeReference type, Collection<ParameterDefinition> parameters)
+        {
+            if (instruction == OpCodes.Calli)
+            {
+                var _signature = new CallSite(type);
+                foreach (var _parameter in parameters) { _signature.Parameters.Add(_parameter); }
+                _signature.CallingConvention = MethodCallingConvention.Default;
+                body.Instructions.Add(Instruction.Create(instruction, _signature));
+                return;
+            }
+            throw new InvalidOperationException();
+        }
+
+        static public void Emit(this MethodBody body, OpCode instruction, TypeReference type)
+        {
+            body.Instructions.Add(Instruction.Create(instruction, type));
         }
 
         static public void Emit(this MethodBody body, OpCode instruction, MethodReference method)

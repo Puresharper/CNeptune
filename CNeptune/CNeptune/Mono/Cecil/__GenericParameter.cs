@@ -19,8 +19,8 @@ namespace Mono.Cecil
             _parameter.IsCovariant = parameter.IsCovariant;
             _parameter.IsNonVariant = _parameter.IsNonVariant;
             _parameter.IsValueType = parameter.IsValueType;
-            _parameter.Namespace = parameter.Namespace;
-            _parameter.Scope = parameter.Scope;
+            //_parameter.Namespace = parameter.Namespace;
+            //_parameter.Scope = parameter.Scope;
             return _parameter;
         }
     }
