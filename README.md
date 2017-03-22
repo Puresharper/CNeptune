@@ -30,5 +30,43 @@ neptune.exe "C:\...\Project.csproj" "Debug"
 PM> Install-Package CNeptune
 ```
 
-## Example of usage
-under specification... coming soon!
+## Example of usage (not yet available)
+- Override method at runtime
+
+Business
+```
+public class Calculator
+{
+    public int Add(int a, int b)
+    {
+        return a + b;
+    }
+}
+```
+
+Obtain the dictionary of definition for 'Calculator'
+```
+var _dictionary = typeof(Calculator).GetNestedType("<Neptune>", BindingFlags.NonPublic).GetField("<<Dictionary>>") as Dictionary<MethodBase, Func<MethodInfo, MethodInfo>>;
+```
+
+Obtain delegate to define 'Add' method
+```
+var _define = _dictionary[typeof(Calculator).GetMethod("Add")];
+```
+
+Define 'Add' method to inject a console 'Hello World' before call.
+```
+_define(_Method => 
+{
+    var _method = new DynamicMethod(string.Empty, ..., typeof(int), new Type[] { typeof(int), typeof(int), typeof(Calculator), true);
+    var _body = _method.GetILGenerator();
+    _body.EmitWriteLine("Hello World");
+    _body.Emit(OpCodes.Ldarg_0); //this
+    _body.Emit(OpCodes.Ldarg_1); //a
+    _body.Emit(OpCodes.Ldarg_2); //b
+    _body.Emit(OpCodes.Call, _Method);
+    _body.Emit(OpCodes.Ret);
+    return _method;
+}
+```
+
