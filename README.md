@@ -44,29 +44,28 @@ public class Calculator
 }
 ```
 
-Obtain the dictionary of definition for 'Calculator'
+Obtain the delegate to manage a method of 'Calculator'
 ```
-var _dictionary = typeof(Calculator).GetNestedType("<Neptune>", BindingFlags.NonPublic).GetField("<<Dictionary>>") as Dictionary<MethodBase, Func<MethodInfo, MethodInfo>>;
-```
-
-Obtain delegate to define 'Add' method
-```
-var _define = _dictionary[typeof(Calculator).GetMethod("Add")];
+var _manage = typeof(Calculator).GetNestedType("<Neptune>", BindingFlags.NonPublic).GetField("<Manage>") as Action<MethodBase, Func<MethodInfo, MethodInfo>>;
 ```
 
 Define 'Add' method to inject a console 'Hello World' before call.
 ```
-_define(_Method => 
-{
-    var _method = new DynamicMethod(string.Empty, ..., typeof(int), new Type[] { typeof(int), typeof(int), typeof(Calculator), true);
-    var _body = _method.GetILGenerator();
-    _body.EmitWriteLine("Hello World");
-    _body.Emit(OpCodes.Ldarg_0); //this
-    _body.Emit(OpCodes.Ldarg_1); //a
-    _body.Emit(OpCodes.Ldarg_2); //b
-    _body.Emit(OpCodes.Call, _Method);
-    _body.Emit(OpCodes.Ret);
-    return _method;
-}
+_manage
+(
+    typeof(Calculator).GetMethod("Add")
+    _Method => 
+    {
+        var _method = new DynamicMethod(string.Empty, typeof(int), new Type[] { typeof(int), typeof(int), typeof(Calculator), true);
+        var _body = _method.GetILGenerator();
+        _body.EmitWriteLine("Hello World");
+        _body.Emit(OpCodes.Ldarg_0); //this
+        _body.Emit(OpCodes.Ldarg_1); //a
+        _body.Emit(OpCodes.Ldarg_2); //b
+        _body.Emit(OpCodes.Call, _Method);
+        _body.Emit(OpCodes.Ret);
+        return _method;
+    }
+);
 ```
 
