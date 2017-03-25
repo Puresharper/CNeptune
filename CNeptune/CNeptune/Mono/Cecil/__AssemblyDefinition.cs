@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Linq.Expressions;
 using Mono;
-using Mono.Cecil;
 
 namespace Mono.Cecil
 {

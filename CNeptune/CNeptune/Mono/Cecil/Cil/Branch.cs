@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime;
-using System.Runtime.CompilerServices;
 using Mono;
 using Mono.Cecil;
-using Mono.Cecil.Cil;
 
 namespace Mono.Cecil.Cil
 {

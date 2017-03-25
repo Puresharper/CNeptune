@@ -2,7 +2,6 @@
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using Mono;
-using Mono.Cecil;
 
 namespace Mono.Cecil
 {
