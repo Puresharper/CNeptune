@@ -53,10 +53,10 @@ Define 'Add' method to inject a console 'Hello World' before call.
 ```
 _update
 (
-    typeof(Class1).GetMethod("Add"),
+    typeof(Calculator).GetMethod("Add"),
     _Method =>
     {
-        var _method = new DynamicMethod(string.Empty, typeof(int), new Type[] { typeof(Class1), typeof(int), typeof(int) }, typeof(Class1), true);
+        var _method = new DynamicMethod(string.Empty, typeof(int), new Type[] { typeof(Calculator), typeof(int), typeof(int) }, typeof(Calculator), true);
         var _body = _method.GetILGenerator();
         _body.EmitWriteLine("Hello World");
         _body.Emit(OpCodes.Ldarg_0); //this
