@@ -7,7 +7,12 @@ using System.Xml;
 using System.Xml.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using System.Collections.Generic;
+
+using BindingFlags = System.Reflection.BindingFlags;
+using ConstructorInfo = System.Reflection.ConstructorInfo;
+using DynamicMethod = System.Reflection.Emit.DynamicMethod;
+using MethodBase = System.Reflection.MethodBase;
+using MethodInfo = System.Reflection.MethodInfo;
 
 namespace CNeptune
 {
@@ -16,12 +21,18 @@ namespace CNeptune
         private const string Neptune = "<Neptune>";
         private const string Module = "<Module>";
         private const string Pointer = "<Pointer>";
+        private const string Update = "<Update>";
+        private const string Override = "<Override>";
+        private const string Method = "<Method>";
 
-        static private readonly System.Reflection.MethodInfo GetTypeFromHandle = Metadata.Method(() => Type.GetTypeFromHandle(Argument<RuntimeTypeHandle>.Value));
-        static private readonly System.Reflection.MethodInfo GetMethodFromHandle = Metadata.Method(() => System.Reflection.MethodInfo.GetMethodFromHandle(Argument<RuntimeMethodHandle>.Value, Argument<RuntimeTypeHandle>.Value));
-        static private readonly System.Reflection.MethodInfo GetMethodHandle = Metadata<System.Reflection.MethodBase>.Property(_Method => _Method.MethodHandle).GetGetMethod();
-        static private readonly System.Reflection.MethodInfo GetFunctionPointer = Metadata<RuntimeMethodHandle>.Method(_Method => _Method.GetFunctionPointer());
-        static private readonly System.Reflection.MethodInfo CreateDelegate = Metadata.Method(() => Delegate.CreateDelegate(Argument<Type>.Value, Argument<System.Reflection.MethodInfo>.Value));
+        static private readonly MethodInfo GetTypeFromHandle = Metadata.Method(() => Type.GetTypeFromHandle(Argument<RuntimeTypeHandle>.Value));
+        static private readonly MethodInfo GetMethodFromHandle = Metadata.Method(() => MethodInfo.GetMethodFromHandle(Argument<RuntimeMethodHandle>.Value, Argument<RuntimeTypeHandle>.Value));
+        static private readonly MethodInfo GetMethodHandle = Metadata<MethodBase>.Property(_Method => _Method.MethodHandle).GetGetMethod();
+        static private readonly MethodInfo GetFunctionPointer = Metadata<RuntimeMethodHandle>.Method(_Method => _Method.GetFunctionPointer());
+        static private readonly MethodInfo CreateDelegate = Metadata.Method(() => Delegate.CreateDelegate(Argument<Type>.Value, Argument<MethodInfo>.Value));
+        static private readonly MethodInfo GetMethodDescriptor = Metadata<DynamicMethod>.Type.GetMethod("GetMethodDescriptor", BindingFlags.Instance | BindingFlags.NonPublic);
+        static private readonly MethodInfo MethodEqualityOperator = Metadata<MethodInfo>.Type.GetMethod("op_Equality");
+        static private readonly ConstructorInfo Exception = Metadata.Constructor(() => new NotSupportedException());
 
         static public void Main(string[] arguments)
         {
@@ -72,31 +83,37 @@ namespace CNeptune
             foreach (var _type in type.NestedTypes) { if (_type.Name == Program.Neptune) { return _type; } }
             return null;
         }
-        
+
         static private void Manage(TypeDefinition type)
         {
             if (Program.Bypass(type)) { return; }
             Program.Restore(type);
             var _type = type.Type(string.Concat(Program.Neptune), TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.NestedAssembly | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
-            var _dictionary = _type.Field<Dictionary<System.Reflection.MethodBase, Action<Func<System.Reflection.MethodInfo, System.Reflection.MethodInfo>>>>("<Dictionary>", FieldAttributes.Static | FieldAttributes.Private);
-            var _update = _type.Method("<<Update>>", MethodAttributes.Private | MethodAttributes.Static);
-            _update.Parameters.Add(new ParameterDefinition("<Override>", ParameterAttributes.None, type.Module.Import(typeof(System.Reflection.MethodBase))));
-            _update.Parameters.Add(new ParameterDefinition("<Override>", ParameterAttributes.None, type.Module.Import(typeof(Func<System.Reflection.MethodInfo, System.Reflection.MethodInfo>))));
+            var _update = _type.Method(string.Concat("<", Program.Update, ">"), MethodAttributes.Public | MethodAttributes.Static);
+            _update.Parameters.Add(new ParameterDefinition(Program.Method, ParameterAttributes.None, type.Module.Import(typeof(MethodBase))));
+            _update.Parameters.Add(new ParameterDefinition(Program.Override, ParameterAttributes.None, type.Module.Import(typeof(Func<MethodInfo, MethodInfo>))));
+            var _field = _type.Field<Action<MethodBase, Func<MethodInfo, MethodInfo>>>(Program.Update, FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
+            var _activation = _type.Activation();
+            _activation.Body.Emit(OpCodes.Ldtoken, _field.FieldType);
+            _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+            _activation.Body.Emit(OpCodes.Ldtoken, _update);
+            _activation.Body.Emit(OpCodes.Ldtoken, _update.DeclaringType);
+            _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+            _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+            _activation.Body.Emit(OpCodes.Stsfld, _field);
+            _activation.Body.Emit(OpCodes.Ret);
+            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_type, _update, _method); }
+            _update.Body.Emit(OpCodes.Newobj, Metadata.Constructor(() => new NotSupportedException()));
+            _update.Body.Emit(OpCodes.Throw);
             _update.Body.Emit(OpCodes.Ret);
-            var _field = _type.Field<Action<System.Reflection.MethodBase, Func<System.Reflection.MethodBody, System.Reflection.MethodBody>>>("<Update>", FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
-            var _activator = _type.Activator();
-            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_type, _method); }
-            _activator.Body.Emit(OpCodes.Ldtoken, _field.FieldType);
-            _activator.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
-            _activator.Body.Emit(OpCodes.Ldtoken, _update);
-            _activator.Body.Emit(OpCodes.Ldtoken, _update.DeclaringType);
-            _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-            _activator.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-            _activator.Body.Emit(OpCodes.Stsfld, _field);
-            _activator.Body.Emit(OpCodes.Ret);
         }
 
-        static private string Name(TypeReference type)
+        static private string Authentic(MethodDefinition method)
+        {
+            return string.Concat("<", method.IsConstructor ? (method.DeclaringType.Name.Contains('`') ? method.DeclaringType.Name.Substring(0, method.DeclaringType.Name.IndexOf('`')) : method.DeclaringType.Name) : method.Name, ">");
+        }
+
+        static private string Gateway(TypeReference type)
         {
             var _index = type.Name.IndexOf('`');
             var _name = _index < 0 ? type.Name : type.Name.Substring(0, _index);
@@ -104,9 +121,9 @@ namespace CNeptune
             return string.Concat("<", _name, string.Concat("<", string.Concat(type.GenericParameters.Select(_parameter => string.Concat("<", _parameter.Name, ">"))), ">"), ">");
         }
 
-        static private string Name(MethodDefinition method)
+        static private string Gateway(MethodDefinition method)
         {
-            return string.Concat("<", method.IsConstructor ? method.DeclaringType.Name : method.Name, method.Parameters.Count > 0 ? string.Concat("<", string.Concat(method.Parameters.Select(_parameter => Program.Name(_parameter.ParameterType))), ">") : string.Empty, ">");
+            return string.Concat("<", method.IsConstructor ? method.DeclaringType.Name : method.Name, method.Parameters.Count > 0 ? string.Concat("<", string.Concat(method.Parameters.Select(_parameter => Program.Gateway(_parameter.ParameterType))), ">") : string.Empty, ">");
         }
 
         static private void Restore(TypeDefinition type)
@@ -115,7 +132,7 @@ namespace CNeptune
             if (_type == null) { return; }
             foreach (var _method in type.Methods.ToArray())
             {
-                var _name = Program.Name(_method);
+                var _name = Program.Authentic(_method);
                 for (var _index = 0; _index < _type.NestedTypes.Count; _index++)
                 {
                     if (_type.NestedTypes[_index].Name == _name)
@@ -137,21 +154,73 @@ namespace CNeptune
             type.NestedTypes.Remove(_type);
         }
 
-        static private void Manage(TypeDefinition type, MethodDefinition method)
+        static private MethodDefinition GetMethodPointer(TypeDefinition type, MethodDefinition activation)
+        {
+            var _field = type.Field<Func<DynamicMethod, RuntimeMethodHandle>>(FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
+            activation.Body.Emit(OpCodes.Ldtoken, _field.FieldType);
+            activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+            activation.Body.Emit(OpCodes.Ldtoken, Program.GetMethodDescriptor);
+            activation.Body.Emit(OpCodes.Ldtoken, Program.GetMethodDescriptor.DeclaringType);
+            activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+            activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+            activation.Body.Emit(OpCodes.Stsfld, _field);
+            var _method = type.Method<IntPtr>(Program.Pointer, MethodAttributes.Static | MethodAttributes.Public);
+            _method.Parameter<MethodInfo>();
+            var _variable = _method.Body.Variable<RuntimeMethodHandle>();
+            _method.Body.Emit(OpCodes.Ldarg_0);
+            _method.Body.Emit(OpCodes.Isinst, Metadata<DynamicMethod>.Type);
+            using (_method.Body.Brfalse())
+            {
+                _method.Body.Emit(OpCodes.Ldsfld, _field);
+                _method.Body.Emit(OpCodes.Ldarg_0);
+                _method.Body.Emit(OpCodes.Call, Metadata<Func<MethodInfo, MethodInfo>>.Method(_Function => _Function.Invoke(Argument<MethodInfo>.Value)));
+                _method.Body.Emit(OpCodes.Stloc_0);
+                _method.Body.Emit(OpCodes.Ldloca_S, _variable);
+                _method.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+                _method.Body.Emit(OpCodes.Ret);
+            }
+            _method.Body.Emit(OpCodes.Ldarg_0);
+            _method.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+            _method.Body.Emit(OpCodes.Stloc_0);
+            _method.Body.Emit(OpCodes.Ldloca_S, _variable);
+            _method.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+            _method.Body.Emit(OpCodes.Ret);
+            return _method;
+        }
+
+        static private void Manage(TypeDefinition type, MethodDefinition manage, MethodDefinition method)
         {
             if (method.IsConstructor && method.IsStatic) { return; }
-            var _authentic = type.Method(string.Concat("<", method.IsConstructor ? (method.DeclaringType.Name.Contains('`') ? method.DeclaringType.Name.Substring(0, method.DeclaringType.Name.IndexOf('`')) : method.DeclaringType.Name) : method.Name, ">"), MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.SpecialName, method.ReturnType);
-            var _gateway = type.Type(Program.Name(method), TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
+            var _authentic = type.Method(Program.Authentic(method), MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.SpecialName, method.ReturnType);
+            var _gateway = type.Type(Program.Gateway(method), TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
+            var _activation = _gateway.Activation();
             var _pointer = _gateway.Field<IntPtr>(Program.Pointer, FieldAttributes.Static | FieldAttributes.Public);
-            var _function = _gateway.Field<System.Reflection.MethodInfo>("<Method>", FieldAttributes.Static | FieldAttributes.Public);
-            var _override = _gateway.Field<Func<System.Reflection.MethodInfo, System.Reflection.MethodInfo>>("<Override>", FieldAttributes.Static | FieldAttributes.Public);
-            var pro = _gateway.Method<System.Reflection.MethodInfo>("<Override>", MethodAttributes.Static | MethodAttributes.Private);
-            pro.Parameters.Add(new ParameterDefinition("<Method>", ParameterAttributes.None, pro.ReturnType));
-            pro.Body.Emit(OpCodes.Ldarg_0);
-            pro.Body.Emit(OpCodes.Ret);
-            var _activator = _gateway.Activator();
+            var _function = _gateway.Field<MethodInfo>(Program.Method, FieldAttributes.Static | FieldAttributes.Public);
+            var _override = _gateway.Field<Func<MethodInfo, MethodInfo>>(Program.Override, FieldAttributes.Static | FieldAttributes.Public);
+            manage.Body.Emit(OpCodes.Ldarg_0);
+            manage.Body.Emit(OpCodes.Ldtoken, method);
+            manage.Body.Emit(OpCodes.Ldtoken, method.DeclaringType);
+            manage.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+            manage.Body.Emit(OpCodes.Call, Program.MethodEqualityOperator);
+            using (manage.Body.Brfalse())
+            {
+                manage.Body.Emit(OpCodes.Ldarg_1);
+                manage.Body.Emit(OpCodes.Stsfld, _override);
+                manage.Body.Emit(OpCodes.Ldarg_1);
+                manage.Body.Emit(OpCodes.Ldtoken, _authentic);
+                manage.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
+                manage.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                manage.Body.Emit(OpCodes.Call, Metadata<Func<MethodInfo, MethodInfo>>.Method(_Function => _Function.Invoke(Argument<MethodInfo>.Value)));
+                manage.Body.Emit(OpCodes.Call, Program.GetMethodPointer(_gateway, _activation));
+                manage.Body.Emit(OpCodes.Stsfld, _pointer);
+                manage.Body.Emit(OpCodes.Ret);
+            }
+            var _method = _gateway.Method<MethodInfo>(Program.Override, MethodAttributes.Static | MethodAttributes.Public);
+            _method.Parameters.Add(new ParameterDefinition(Program.Method, ParameterAttributes.None, _method.ReturnType));
+            _method.Body.Emit(OpCodes.Ldarg_0);
+            _method.Body.Emit(OpCodes.Ret);
             _authentic.Body = method.Body;
-            _activator.Body.Variable<RuntimeMethodHandle>("<RuntimeMethodHandle>");
+            _activation.Body.Variable<RuntimeMethodHandle>();
             method.Body = new MethodBody(method);
             method.Body.Variable<IntPtr>(Program.Pointer);
             if (method.IsStatic)
@@ -159,24 +228,24 @@ namespace CNeptune
                 if (method.GenericParameters.Count == 0)
                 {
                     foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
-                    _activator.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-                    _activator.Body.Emit(OpCodes.Stsfld, _override);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _authentic);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Stsfld, _function);
-                    _activator.Body.Emit(OpCodes.Ldsfld, _function);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                    _activator.Body.Emit(OpCodes.Stloc_0);
-                    _activator.Body.Emit(OpCodes.Ldloca_S, _activator.Body.Variables[0]);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                    _activator.Body.Emit(OpCodes.Stsfld, _pointer);
-                    _activator.Body.Emit(OpCodes.Ret);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+                    _activation.Body.Emit(OpCodes.Stsfld, _override);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _authentic);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Stsfld, _function);
+                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+                    _activation.Body.Emit(OpCodes.Stloc_0);
+                    _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+                    _activation.Body.Emit(OpCodes.Stsfld, _pointer);
+                    _activation.Body.Emit(OpCodes.Ret);
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -200,26 +269,26 @@ namespace CNeptune
                         _authentic.GenericParameters.Add(_parameter.Copy(_authentic));
                     }
                     foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
-                    var _method = new GenericInstanceMethod(_authentic);
-                    foreach (var _parameter in _gateway.GenericParameters) { _method.GenericArguments.Add(_parameter); }
-                    _activator.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-                    _activator.Body.Emit(OpCodes.Stsfld, _override);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _method);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Stsfld, _function);
-                    _activator.Body.Emit(OpCodes.Ldsfld, _function);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                    _activator.Body.Emit(OpCodes.Stloc_0);
-                    _activator.Body.Emit(OpCodes.Ldloca_S, _activator.Body.Variables[0]);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                    _activator.Body.Emit(OpCodes.Stsfld, _pointer);
-                    _activator.Body.Emit(OpCodes.Ret);
+                    var _generic = new GenericInstanceMethod(_authentic);
+                    foreach (var _parameter in _gateway.GenericParameters) { _generic.GenericArguments.Add(_parameter); }
+                    _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+                    _activation.Body.Emit(OpCodes.Stsfld, _override);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _generic);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _generic.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Stsfld, _function);
+                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+                    _activation.Body.Emit(OpCodes.Stloc_0);
+                    _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+                    _activation.Body.Emit(OpCodes.Stsfld, _pointer);
+                    _activation.Body.Emit(OpCodes.Ret);
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -244,24 +313,24 @@ namespace CNeptune
                 {
                     _authentic.Parameters.Add(new ParameterDefinition(method.DeclaringType));
                     foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
-                    _activator.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-                    _activator.Body.Emit(OpCodes.Stsfld, _override);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _authentic);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Stsfld, _function);
-                    _activator.Body.Emit(OpCodes.Ldsfld, _function);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                    _activator.Body.Emit(OpCodes.Stloc_0);
-                    _activator.Body.Emit(OpCodes.Ldloca_S, _activator.Body.Variables[0]);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                    _activator.Body.Emit(OpCodes.Stsfld, _pointer);
-                    _activator.Body.Emit(OpCodes.Ret);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+                    _activation.Body.Emit(OpCodes.Stsfld, _override);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _authentic);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Stsfld, _function);
+                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+                    _activation.Body.Emit(OpCodes.Stloc_0);
+                    _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+                    _activation.Body.Emit(OpCodes.Stsfld, _pointer);
+                    _activation.Body.Emit(OpCodes.Ret);
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)
@@ -286,26 +355,26 @@ namespace CNeptune
                     }
                     _authentic.Parameters.Add(new ParameterDefinition(method.DeclaringType));
                     foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
-                    var _method = new GenericInstanceMethod(_authentic);
-                    foreach (var _parameter in _gateway.GenericParameters) { _method.GenericArguments.Add(_parameter); }
-                    _activator.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro);
-                    _activator.Body.Emit(OpCodes.Ldtoken, pro.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-                    _activator.Body.Emit(OpCodes.Stsfld, _override);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _method);
-                    _activator.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
-                    _activator.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activator.Body.Emit(OpCodes.Stsfld, _function);
-                    _activator.Body.Emit(OpCodes.Ldsfld, _function);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                    _activator.Body.Emit(OpCodes.Stloc_0);
-                    _activator.Body.Emit(OpCodes.Ldloca_S, _activator.Body.Variables[0]);
-                    _activator.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                    _activator.Body.Emit(OpCodes.Stsfld, _pointer);
-                    _activator.Body.Emit(OpCodes.Ret);
+                    var _generic = new GenericInstanceMethod(_authentic);
+                    foreach (var _parameter in _gateway.GenericParameters) { _generic.GenericArguments.Add(_parameter); }
+                    _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
+                    _activation.Body.Emit(OpCodes.Stsfld, _override);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _generic);
+                    _activation.Body.Emit(OpCodes.Ldtoken, _generic.DeclaringType);
+                    _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    _activation.Body.Emit(OpCodes.Stsfld, _function);
+                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+                    _activation.Body.Emit(OpCodes.Stloc_0);
+                    _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
+                    _activation.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+                    _activation.Body.Emit(OpCodes.Stsfld, _pointer);
+                    _activation.Body.Emit(OpCodes.Ret);
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
                         switch (_index)

@@ -9,8 +9,6 @@ namespace System
 {
     static internal class Metadata
     {
-        //static public readonly Type Void = typeof(void);
-
         static public ConstructorInfo Constructor<T>(Expression<Func<T>> expression)
         {
             return (expression.Body as NewExpression).Constructor;

@@ -29,6 +29,15 @@ namespace Mono.Cecil
             return _field;
         }
 
+        static public FieldDefinition Field<T>(this TypeDefinition type, FieldAttributes attributes)
+        {
+            var _field = new FieldDefinition(string.Concat("<", typeof(T).Name, ">"), attributes, type.Module.Import(typeof(T)));
+            type.Fields.Add(_field);
+            _field.Attribute<CompilerGeneratedAttribute>();
+            _field.Attribute(() => new DebuggerBrowsableAttribute(DebuggerBrowsableState.Never));
+            return _field;
+        }
+
         static public FieldDefinition Field<T>(this TypeDefinition type, string name, FieldAttributes attributes)
         {
             var _field = new FieldDefinition(name, attributes, type.Module.Import(typeof(T)));
@@ -42,8 +51,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, @return);
             type.Methods.Add(_method);
-            _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<CompilerGeneratedAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -51,8 +60,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.Import(@return));
             type.Methods.Add(_method);
-            _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<CompilerGeneratedAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -60,8 +69,8 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
-            _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<CompilerGeneratedAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -69,8 +78,17 @@ namespace Mono.Cecil
         {
             var _method = new MethodDefinition(name, attributes, type.Module.Import(typeof(T)));
             type.Methods.Add(_method);
-            _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<CompilerGeneratedAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
+            return _method;
+        }
+
+        static public MethodDefinition Method<T>(this TypeDefinition type, MethodAttributes attributes)
+        {
+            var _method = new MethodDefinition(string.Concat("<", typeof(T).Name, ">"), attributes, type.Module.Import(typeof(T)));
+            type.Methods.Add(_method);
+            //_method.Attribute<CompilerGeneratedAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
@@ -110,7 +128,7 @@ namespace Mono.Cecil
             return _method;
         }
 
-        static public MethodDefinition Activator(this TypeDefinition type)
+        static public MethodDefinition Activation(this TypeDefinition type)
         {
             var _method = new MethodDefinition(".cctor", MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
