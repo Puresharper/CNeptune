@@ -46,17 +46,17 @@ public class Calculator
 
 Obtain the delegate to manage a method of 'Calculator'
 ```
-var _manage = typeof(Calculator).GetNestedType("<Neptune>", BindingFlags.NonPublic).GetField("<Manage>") as Action<MethodBase, Func<MethodInfo, MethodInfo>>;
+var _update = typeof(Calculator).GetNestedType("<Neptune>", BindingFlags.NonPublic).GetField("<Update>").GetValue(null) as Action<MethodBase, Func<MethodInfo, MethodInfo>>;
 ```
 
 Define 'Add' method to inject a console 'Hello World' before call.
 ```
-_manage
+_update
 (
-    typeof(Calculator).GetMethod("Add")
-    _Method => 
+    typeof(Class1).GetMethod("Add"),
+    _Method =>
     {
-        var _method = new DynamicMethod(string.Empty, typeof(int), new Type[] { typeof(int), typeof(int), typeof(Calculator), true);
+        var _method = new DynamicMethod(string.Empty, typeof(int), new Type[] { typeof(Class1), typeof(int), typeof(int) }, typeof(Class1), true);
         var _body = _method.GetILGenerator();
         _body.EmitWriteLine("Hello World");
         _body.Emit(OpCodes.Ldarg_0); //this
