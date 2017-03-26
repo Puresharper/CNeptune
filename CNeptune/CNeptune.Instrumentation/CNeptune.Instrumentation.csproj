@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D415F5BF-506D-4660-B1AC-D0FBD83F4620}</ProjectGuid>
+    <ProjectGuid>{DF3A056D-DF61-4B6B-9F70-4F816C78D3C5}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CNeptune.Injection</RootNamespace>
-    <AssemblyName>CNeptune.Injection</AssemblyName>
+    <RootNamespace>CNeptune.Instrumentation</RootNamespace>
+    <AssemblyName>CNeptune.Instrumentation</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -37,7 +37,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>CNeptune.Injection.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>CNeptune.Instrumentation.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Mono.Cecil, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
@@ -80,11 +80,17 @@
     <Compile Include="System\Metadata.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="CNeptune.Injection.snk" />
-    <None Include="CNeptune.Injection.targets">
+    <None Include="CNeptune.Instrumentation.snk" />
+    <None Include="CNeptune.Instrumentation.targets">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CNeptune\CNeptune.csproj">
+      <Project>{376e3985-0f94-4e55-82a4-5f5dd6b06f8b}</Project>
+      <Name>CNeptune</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

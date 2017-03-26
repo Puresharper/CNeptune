@@ -3,10 +3,10 @@
   <PropertyGroup>
     <BuildDependsOn>
       $(BuildDependsOn);
-      CNeptune.Injection
+      CNeptune.Instrumentation
     </BuildDependsOn>
   </PropertyGroup>
-  <Target Name="CNeptune.Injection">
-    <Exec Command="&quot;$(SolutionDir)packages\CNeptune.Injection.1.0.0\build\CNeptune.Injection.exe&quot; &quot;$(ProjectPath)&quot; &quot;$(Configuration)&quot;" />
+  <Target Name="CNeptune.Instrumentation">
+    <Exec Command="&quot;$(SolutionDir)packages\CNeptune.Instrumentation.1.0.0\build\CNeptune.Instrumentation.exe&quot; &quot;$(ProjectPath)&quot; &quot;$(Configuration)&quot;" />
   </Target>
 </Project>
