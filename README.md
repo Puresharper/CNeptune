@@ -30,7 +30,7 @@ neptune.exe "C:\...\Project.csproj" "Debug"
 PM> Install-Package CNeptune
 ```
 
-## Example of usage (not yet available)
+## Example of usage
 - Override method at runtime
 
 Business
