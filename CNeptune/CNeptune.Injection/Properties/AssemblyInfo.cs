@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("CNeptune")]
+[assembly: AssemblyTitle("CNeptune.Injection")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("CNeptune")]
+[assembly: AssemblyProduct("CNeptune.Injection")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("376e3985-0f94-4e55-82a4-5f5dd6b06f8b")]
+[assembly: Guid("d415f5bf-506d-4660-b1ac-d0fbd83f4620")]
 
 // Version information for an assembly consists of the following four values:
 //

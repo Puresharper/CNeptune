@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Runtime;
-using System.Runtime.CompilerServices;
 using System.Xml;
 using System.Xml.Linq;
 using Mono.Cecil;

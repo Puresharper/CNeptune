@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CNeptune", "CNeptune\CNeptune.csproj", "{62DF9688-1E06-413A-95EF-1F99F6E52CEC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CNeptune.Injection", "CNeptune.Injection\CNeptune.Injection.csproj", "{D415F5BF-506D-4660-B1AC-D0FBD83F4620}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CNeptune", "CNeptune\CNeptune.csproj", "{376E3985-0F94-4E55-82A4-5F5DD6B06F8B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{62DF9688-1E06-413A-95EF-1F99F6E52CEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{62DF9688-1E06-413A-95EF-1F99F6E52CEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{62DF9688-1E06-413A-95EF-1F99F6E52CEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{62DF9688-1E06-413A-95EF-1F99F6E52CEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D415F5BF-506D-4660-B1AC-D0FBD83F4620}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D415F5BF-506D-4660-B1AC-D0FBD83F4620}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D415F5BF-506D-4660-B1AC-D0FBD83F4620}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D415F5BF-506D-4660-B1AC-D0FBD83F4620}.Release|Any CPU.Build.0 = Release|Any CPU
+		{376E3985-0F94-4E55-82A4-5F5DD6B06F8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{376E3985-0F94-4E55-82A4-5F5DD6B06F8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{376E3985-0F94-4E55-82A4-5F5DD6B06F8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{376E3985-0F94-4E55-82A4-5F5DD6B06F8B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
