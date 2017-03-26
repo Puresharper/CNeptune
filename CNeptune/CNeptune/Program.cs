@@ -47,14 +47,19 @@ namespace CNeptune
                     var _document = XDocument.Load(arguments[0]);
                     var _namespace = _document.Root.Name.Namespace;
                     var _name = _document.Descendants(_namespace.GetName("AssemblyName")).Single().Value;
+                    var _type = _document.Descendants(_namespace.GetName("OutputType")).SingleOrDefault();
                     foreach (var _element in _document.Descendants(_namespace.GetName("OutputPath")))
                     {
                         foreach (var _attribute in _element.Parent.Attributes())
                         {
                             if (_attribute.Value.Contains(arguments[1]))
                             {
-                                Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll"));
-                                return;
+                                switch (_type == null ? "Library" : _type.Value)
+                                {
+                                    case "Library": Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll")); return;
+                                    case "Exe": Program.Manage(string.Concat(_directory, _element.Value, _name, ".exe")); return;
+                                    default: throw new NotSupportedException();
+                                }
                             }
                         }
                     }
