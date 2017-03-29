@@ -93,7 +93,7 @@ namespace Mono.Cecil
 
         static public TypeDefinition Type(this TypeDefinition type, string name, TypeAttributes attributes)
         {
-            var _type = new TypeDefinition(type.Namespace, name, attributes, type.Module.TypeSystem.Object);
+            var _type = new TypeDefinition(null, name, attributes, type.Module.TypeSystem.Object);
             type.NestedTypes.Add(_type);
             _type.Attribute<CompilerGeneratedAttribute>();
             _type.Attribute<SerializableAttribute>();

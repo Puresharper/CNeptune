@@ -97,6 +97,7 @@ namespace CNeptune.Instrumentation
             _update.Parameters.Add(new ParameterDefinition(Program.Override, ParameterAttributes.None, type.Module.Import(typeof(Func<MethodInfo, MethodInfo>))));
             var _field = _type.Field<Action<MethodBase, Func<MethodInfo, MethodInfo>>>(Program.Update, FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
             var _activation = _type.Activation();
+            var _pointer = Program.GetMethodPointer(_type, _activation);
             _activation.Body.Emit(OpCodes.Ldtoken, _field.FieldType);
             _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
             _activation.Body.Emit(OpCodes.Ldtoken, _update);
@@ -105,7 +106,7 @@ namespace CNeptune.Instrumentation
             _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
             _activation.Body.Emit(OpCodes.Stsfld, _field);
             _activation.Body.Emit(OpCodes.Ret);
-            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_type, _update, _method); }
+            foreach (var _method in type.Methods.ToArray()) { Program.Manage(_type, _update, _pointer, _method); }
             _update.Body.Emit(OpCodes.Newobj, Metadata.Constructor(() => new NotSupportedException()));
             _update.Body.Emit(OpCodes.Throw);
             _update.Body.Emit(OpCodes.Ret);
@@ -121,12 +122,13 @@ namespace CNeptune.Instrumentation
             var _index = type.Name.IndexOf('`');
             var _name = _index < 0 ? type.Name : type.Name.Substring(0, _index);
             if (type.GenericParameters.Count == 0) { return string.Concat("<", _name, ">"); }
+            _name = string.Concat(_name, "<", type.GenericParameters.Count.ToString(), ">");
             return string.Concat("<", _name, string.Concat("<", string.Concat(type.GenericParameters.Select(_parameter => string.Concat("<", _parameter.Name, ">"))), ">"), ">");
         }
 
         static private string Gateway(MethodDefinition method)
         {
-            return string.Concat("<", method.IsConstructor ? method.DeclaringType.Name : method.Name, method.Parameters.Count > 0 ? string.Concat("<", string.Concat(method.Parameters.Select(_parameter => Program.Gateway(_parameter.ParameterType))), ">") : string.Empty, ">");
+            return string.Concat("<", method.IsConstructor ? method.DeclaringType.Name : method.Name, method.GenericParameters.Count > 0 ? string.Concat("<", method.GenericParameters.Count, ">") : string.Empty, method.Parameters.Count > 0 ? string.Concat("<", string.Concat(method.Parameters.Select(_parameter => Program.Gateway(_parameter.ParameterType))), ">") : string.Empty, ">");
         }
 
         static private void Restore(TypeDefinition type)
@@ -159,7 +161,7 @@ namespace CNeptune.Instrumentation
 
         static private MethodDefinition GetMethodPointer(TypeDefinition type, MethodDefinition activation)
         {
-            var _field = type.Field<Func<DynamicMethod, RuntimeMethodHandle>>(FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
+            var _field = type.Field<Func<DynamicMethod, RuntimeMethodHandle>>(Program.Pointer, FieldAttributes.Static | FieldAttributes.Public | FieldAttributes.InitOnly);
             activation.Body.Emit(OpCodes.Ldtoken, _field.FieldType);
             activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
             activation.Body.Emit(OpCodes.Ldtoken, Program.GetMethodDescriptor);
@@ -191,32 +193,34 @@ namespace CNeptune.Instrumentation
             return _method;
         }
 
-        static private void Manage(TypeDefinition type, MethodDefinition manage, MethodDefinition method)
+        static private void Manage(TypeDefinition type, MethodDefinition update, MethodDefinition pointer, MethodDefinition method)
         {
             if (method.IsConstructor && method.IsStatic) { return; }
             var _authentic = type.Method(Program.Authentic(method), MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.SpecialName, method.ReturnType);
             var _gateway = type.Type(Program.Gateway(method), TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
             var _activation = _gateway.Activation();
             var _pointer = _gateway.Field<IntPtr>(Program.Pointer, FieldAttributes.Static | FieldAttributes.Public);
-            var _function = _gateway.Field<MethodInfo>(Program.Method, FieldAttributes.Static | FieldAttributes.Public);
             var _override = _gateway.Field<Func<MethodInfo, MethodInfo>>(Program.Override, FieldAttributes.Static | FieldAttributes.Public);
-            manage.Body.Emit(OpCodes.Ldarg_0);
-            manage.Body.Emit(OpCodes.Ldtoken, method);
-            manage.Body.Emit(OpCodes.Ldtoken, method.DeclaringType);
-            manage.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-            manage.Body.Emit(OpCodes.Call, Program.MethodEqualityOperator);
-            using (manage.Body.Brfalse())
+            if (method.GenericParameters.Count == 0) // TODO : add support for generic in next release!
             {
-                manage.Body.Emit(OpCodes.Ldarg_1);
-                manage.Body.Emit(OpCodes.Stsfld, _override);
-                manage.Body.Emit(OpCodes.Ldarg_1);
-                manage.Body.Emit(OpCodes.Ldtoken, _authentic);
-                manage.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
-                manage.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                manage.Body.Emit(OpCodes.Call, Metadata<Func<MethodInfo, MethodInfo>>.Method(_Function => _Function.Invoke(Argument<MethodInfo>.Value)));
-                manage.Body.Emit(OpCodes.Call, Program.GetMethodPointer(_gateway, _activation));
-                manage.Body.Emit(OpCodes.Stsfld, _pointer);
-                manage.Body.Emit(OpCodes.Ret);
+                update.Body.Emit(OpCodes.Ldarg_0);
+                update.Body.Emit(OpCodes.Ldtoken, method);
+                update.Body.Emit(OpCodes.Ldtoken, method.DeclaringType);
+                update.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                update.Body.Emit(OpCodes.Call, Program.MethodEqualityOperator);
+                using (update.Body.Brfalse())
+                {
+                    update.Body.Emit(OpCodes.Ldarg_1);
+                    update.Body.Emit(OpCodes.Stsfld, _override);
+                    update.Body.Emit(OpCodes.Ldarg_1);
+                    update.Body.Emit(OpCodes.Ldtoken, _authentic);
+                    update.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
+                    update.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
+                    update.Body.Emit(OpCodes.Call, Metadata<Func<MethodInfo, MethodInfo>>.Method(_Function => _Function.Invoke(Argument<MethodInfo>.Value)));
+                    update.Body.Emit(OpCodes.Call, pointer);
+                    update.Body.Emit(OpCodes.Stsfld, _pointer);
+                    update.Body.Emit(OpCodes.Ret);
+                }
             }
             var _method = _gateway.Method<MethodInfo>(Program.Override, MethodAttributes.Static | MethodAttributes.Public);
             _method.Parameters.Add(new ParameterDefinition(Program.Method, ParameterAttributes.None, _method.ReturnType));
@@ -241,8 +245,6 @@ namespace CNeptune.Instrumentation
                     _activation.Body.Emit(OpCodes.Ldtoken, _authentic);
                     _activation.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activation.Body.Emit(OpCodes.Stsfld, _function);
-                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
                     _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
                     _activation.Body.Emit(OpCodes.Stloc_0);
                     _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
@@ -271,7 +273,19 @@ namespace CNeptune.Instrumentation
                         _gateway.GenericParameters.Add(_parameter.Copy(_gateway));
                         _authentic.GenericParameters.Add(_parameter.Copy(_authentic));
                     }
-                    foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
+                    foreach (var _parameter in method.Parameters)
+                    {
+                        for (var _index = 0; _index < method.GenericParameters.Count; _index++)
+                        {
+                            if (method.GenericParameters[_index] == _parameter.ParameterType)
+                            {
+                                _authentic.Parameters.Add(new ParameterDefinition(_parameter.Name, _parameter.Attributes, _authentic.GenericParameters[_index]));
+                                goto generic;
+                            }
+                        }
+                        _authentic.Parameters.Add(new ParameterDefinition(_parameter.Name, _parameter.Attributes, _parameter.ParameterType));
+                        generic:;
+                    }
                     var _generic = new GenericInstanceMethod(_authentic);
                     foreach (var _parameter in _gateway.GenericParameters) { _generic.GenericArguments.Add(_parameter); }
                     _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
@@ -284,8 +298,6 @@ namespace CNeptune.Instrumentation
                     _activation.Body.Emit(OpCodes.Ldtoken, _generic);
                     _activation.Body.Emit(OpCodes.Ldtoken, _generic.DeclaringType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activation.Body.Emit(OpCodes.Stsfld, _function);
-                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
                     _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
                     _activation.Body.Emit(OpCodes.Stloc_0);
                     _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
@@ -326,8 +338,6 @@ namespace CNeptune.Instrumentation
                     _activation.Body.Emit(OpCodes.Ldtoken, _authentic);
                     _activation.Body.Emit(OpCodes.Ldtoken, _authentic.DeclaringType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activation.Body.Emit(OpCodes.Stsfld, _function);
-                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
                     _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
                     _activation.Body.Emit(OpCodes.Stloc_0);
                     _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
@@ -357,26 +367,41 @@ namespace CNeptune.Instrumentation
                         _authentic.GenericParameters.Add(_parameter.Copy(_authentic));
                     }
                     _authentic.Parameters.Add(new ParameterDefinition(method.DeclaringType));
-                    foreach (var _parameter in method.Parameters) { _authentic.Parameters.Add(_parameter); }
+                    foreach (var _parameter in method.Parameters)
+                    {
+                        for (var _index = 0; _index < method.GenericParameters.Count; _index++)
+                        {
+                            if (method.GenericParameters[_index] == _parameter.ParameterType)
+                            {
+                                _authentic.Parameters.Add(new ParameterDefinition(_parameter.Name, _parameter.Attributes, _authentic.GenericParameters[_index]));
+                                goto generic;
+                            }
+                        }
+                        _authentic.Parameters.Add(new ParameterDefinition(_parameter.Name, _parameter.Attributes, _parameter.ParameterType));
+                        generic:;
+                    }
+                    var _type = new GenericInstanceType(_gateway);
                     var _generic = new GenericInstanceMethod(_authentic);
-                    foreach (var _parameter in _gateway.GenericParameters) { _generic.GenericArguments.Add(_parameter); }
+                    foreach (var _parameter in _gateway.GenericParameters)
+                    {
+                        _type.GenericArguments.Add(_parameter);
+                        _generic.GenericArguments.Add(_parameter);
+                    }
                     _activation.Body.Emit(OpCodes.Ldtoken, _override.FieldType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetTypeFromHandle);
                     _activation.Body.Emit(OpCodes.Ldtoken, _method);
                     _activation.Body.Emit(OpCodes.Ldtoken, _method.DeclaringType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
                     _activation.Body.Emit(OpCodes.Call, Program.CreateDelegate);
-                    _activation.Body.Emit(OpCodes.Stsfld, _override);
+                    _activation.Body.Emit(OpCodes.Stsfld, new FieldReference(_override.Name, _override.FieldType, _type));
                     _activation.Body.Emit(OpCodes.Ldtoken, _generic);
                     _activation.Body.Emit(OpCodes.Ldtoken, _generic.DeclaringType);
                     _activation.Body.Emit(OpCodes.Call, Program.GetMethodFromHandle);
-                    _activation.Body.Emit(OpCodes.Stsfld, _function);
-                    _activation.Body.Emit(OpCodes.Ldsfld, _function);
                     _activation.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
                     _activation.Body.Emit(OpCodes.Stloc_0);
                     _activation.Body.Emit(OpCodes.Ldloca_S, _activation.Body.Variables[0]);
                     _activation.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                    _activation.Body.Emit(OpCodes.Stsfld, _pointer);
+                    _activation.Body.Emit(OpCodes.Stsfld, new FieldReference(_pointer.Name, _pointer.FieldType, _type));
                     _activation.Body.Emit(OpCodes.Ret);
                     for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
                     {
@@ -389,7 +414,7 @@ namespace CNeptune.Instrumentation
                             default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[_index]); break;
                         }
                     }
-                    var _type = new GenericInstanceType(_gateway);
+                    _type = new GenericInstanceType(_gateway);
                     foreach (var _parameter in method.GenericParameters) { _type.GenericArguments.Add(_parameter); }
                     method.Body.Emit(OpCodes.Ldsfld, new FieldReference(_pointer.Name, _pointer.FieldType, _type));
                     method.Body.Emit(OpCodes.Calli, _authentic.ReturnType, _authentic.Parameters);
