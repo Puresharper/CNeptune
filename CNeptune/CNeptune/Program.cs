@@ -78,7 +78,7 @@ namespace CNeptune.Instrumentation
 
         static private bool Bypass(TypeDefinition type)
         {
-            return type.IsInterface || type.IsValueType || type.Name == Program.Module || type.Name == Program.Neptune || type.BaseType == type.Module.Import(typeof(MulticastDelegate));
+            return type.IsInterface || type.IsValueType || type.Name == Program.Module || type.Name == Program.Neptune || (type.BaseType != null && type.BaseType.Resolve() == type.Module.Import(typeof(MulticastDelegate)).Resolve());
         }
 
         static private TypeDefinition Instrumentation(TypeDefinition type)
