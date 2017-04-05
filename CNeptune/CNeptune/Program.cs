@@ -55,8 +55,9 @@ namespace CNeptune.Instrumentation
                                 switch (_type == null ? "Library" : _type.Value)
                                 {
                                     case "Library": Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll")); return;
+                                    case "WinExe":
                                     case "Exe": Program.Manage(string.Concat(_directory, _element.Value, _name, ".exe")); return;
-                                    default: throw new NotSupportedException();
+                                    default: throw new NotSupportedException($"Unknown OutputType: {_type.Value}");
                                 }
                             }
                         }
@@ -151,6 +152,7 @@ namespace CNeptune.Instrumentation
                     if (_type.Methods[_index].Name == _name)
                     {
                         _method.Body = _type.Methods[_index].Body;
+                        //TODO translate for generic!
                         _type.Methods.RemoveAt(_index);
                         break;
                     }
