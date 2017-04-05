@@ -12,7 +12,7 @@ using DynamicMethod = System.Reflection.Emit.DynamicMethod;
 using MethodBase = System.Reflection.MethodBase;
 using MethodInfo = System.Reflection.MethodInfo;
 
-namespace CNeptune.Instrumentation
+namespace CNeptune
 {
     static public class Program
     {
