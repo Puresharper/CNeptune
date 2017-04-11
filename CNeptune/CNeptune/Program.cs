@@ -72,7 +72,7 @@ namespace CNeptune
 
         static private bool Bypass(MethodDefinition method)
         {
-            return method.IsConstructor || method.Body == null || (method.IsConstructor && method.IsStatic);
+            return method.Body == null || (method.IsConstructor && method.IsStatic);
         }
 
         static private void Manage(TypeDefinition type)
