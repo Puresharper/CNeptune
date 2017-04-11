@@ -12,6 +12,9 @@ namespace Mono.Cecil
 {
     static internal class __MethodBody
     {
+        static private readonly MethodInfo GetTypeFromHandle = System.Metadata.Method(() => Type.GetTypeFromHandle(Argument<RuntimeTypeHandle>.Value));
+        static private readonly MethodInfo GetMethodFromHandle = System.Metadata.Method(() => MethodInfo.GetMethodFromHandle(Argument<RuntimeMethodHandle>.Value, Argument<RuntimeTypeHandle>.Value));
+
         static public void Add(this MethodBody body, Instruction instruction)
         {
             body.Instructions.Add(instruction);
@@ -20,12 +23,12 @@ namespace Mono.Cecil
             _branch.Finialize(instruction);
         }
 
-        static public IDisposable Brfalse(this MethodBody body)
+        static public IDisposable True(this MethodBody body)
         {
             return new Branch(body, OpCodes.Brfalse).Begin();
         }
 
-        static public IDisposable Brtrue(this MethodBody body)
+        static public IDisposable False(this MethodBody body)
         {
             return new Branch(body, OpCodes.Brtrue).Begin();
         }
@@ -98,6 +101,19 @@ namespace Mono.Cecil
             body.Add(Instruction.Create(instruction, body.Method.DeclaringType.Module.Import(constructor)));
         }
 
+        static public void Emit(this MethodBody body, TypeReference type)
+        {
+            body.Emit(OpCodes.Ldtoken, type);
+            body.Emit(OpCodes.Call, __MethodBody.GetTypeFromHandle);
+        }
+
+        static public void Emit(this MethodBody body, MethodReference method)
+        {
+            body.Emit(OpCodes.Ldtoken, method);
+            body.Emit(OpCodes.Ldtoken, method.DeclaringType);
+            body.Emit(OpCodes.Call, __MethodBody.GetMethodFromHandle);
+        }
+
         static public VariableDefinition Variable<T>(this MethodBody body)
         {
             var _variable = new VariableDefinition(string.Concat("<", Metadata<T>.Type, ">"), body.Method.DeclaringType.Module.Import(Metadata<T>.Type));
@@ -110,6 +126,12 @@ namespace Mono.Cecil
             var _variable = new VariableDefinition(name, body.Method.DeclaringType.Module.Import(Metadata<T>.Type));
             body.Variables.Add(_variable);
             return _variable;
+        }
+
+        static public VariableDefinition Add(this MethodBody body, VariableDefinition variable)
+        {
+            body.Variables.Add(variable);
+            return variable;
         }
     }
 }

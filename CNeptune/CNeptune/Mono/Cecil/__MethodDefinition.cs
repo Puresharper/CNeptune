@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using Mono;
 
 namespace Mono.Cecil
 {
@@ -33,6 +34,19 @@ namespace Mono.Cecil
         static public void Parameter<T>(this MethodDefinition method, string name)
         {
             method.Parameters.Add(new ParameterDefinition(name, ParameterAttributes.None, method.Module.Import(typeof(T))));
-        } 
+        }
+
+        static public ParameterDefinition Add(this MethodDefinition method, ParameterDefinition parameter)
+        {
+            method.Parameters.Add(parameter);
+            return parameter;
+        }
+
+        static public GenericInstanceMethod MakeGenericMethod(this MethodDefinition method, IEnumerable<GenericParameter> arguments)
+        {
+            var _method = new GenericInstanceMethod(method);
+            foreach (var _argument in arguments) { _method.GenericArguments.Add(_argument); }
+            return _method;
+        }
     }
 }

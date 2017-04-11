@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using Mono;
 
 namespace Mono.Cecil
 {
@@ -123,17 +124,24 @@ namespace Mono.Cecil
             var _method = new MethodDefinition(".ctor", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
             _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
         }
 
-        static public MethodDefinition Activation(this TypeDefinition type)
+        static public MethodDefinition Initializer(this TypeDefinition type)
         {
             var _method = new MethodDefinition(".cctor", MethodAttributes.Static | MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, type.Module.TypeSystem.Void);
             type.Methods.Add(_method);
             _method.Attribute<CompilerGeneratedAttribute>();
-            _method.Attribute<DebuggerHiddenAttribute>();
+            //_method.Attribute<DebuggerHiddenAttribute>();
             return _method;
+        }
+
+        static public GenericInstanceType MakeGenericType(this TypeDefinition type, IEnumerable<GenericParameter> arguments)
+        {
+            var _type = new GenericInstanceType(type);
+            foreach (var _argument in arguments) { _type.GenericArguments.Add(_argument); }
+            return _type;
         }
     }
 }
