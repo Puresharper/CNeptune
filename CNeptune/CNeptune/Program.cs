@@ -1,12 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Runtime;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using System.Xml.Linq;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MethodBase = System.Reflection.MethodBase;
 using MethodInfo = System.Reflection.MethodInfo;
+
 
 namespace CNeptune
 {
@@ -159,6 +162,11 @@ namespace CNeptune
                 _initializer.Body.Emit(OpCodes.Ldloca_S, _variable);
                 _initializer.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
                 _initializer.Body.Emit(OpCodes.Stsfld, new FieldReference(_field.Name, _field.FieldType, _intermediate.MakeGenericType(_intermediate.GenericParameters)));
+
+                //TODO : IOC of AOP !? What the? in fact it will be used to be able to inject on method on demand but a late as possible.
+                //Action<MethodBase> _update;
+                //lock (AppDomain.CurrentDomain.Evidence.SyncRoot) { _update = AppDomain.CurrentDomain.GetData("<Neptune<Update>>") as Action<MethodBase>; }
+                //if (_update != null) { _update(...); }
             }
             _initializer.Body.Emit(OpCodes.Ret);
             return _field;
@@ -195,6 +203,15 @@ namespace CNeptune
                 method.Body.Emit(OpCodes.Calli, _method.ReturnType, _method.Parameters);
             }
             method.Body.Emit(OpCodes.Ret);
+
+            ////async
+            //if (method.Module.Import(typeof(IAsyncStateMachine)).IsAssignableFrom(method.DeclaringType) && method.Name == "MoveNext") // TODO : change method name test by reliable IAsyncStateMachine.MoveNext resolution.
+            //{
+            //    //add static field to intermediate as pointer to produce Tuple<IntPtr, IntPtr, IntPtr, IntPtr>!
+            //    //add constructor to state machine to force initialize 4 fantastics by calling intermediate!
+            //    //add instance field to state machine <Intermediate>
+            //    //pointer to call resume:(AsyncTaskMethodBuilder, int state) / setresult(AsyncTaskMethodBuilder, int state) / setexception(AsyncTaskMethodBuilder, int state) / AwaitUnsafeOnCompleted(AsyncTaskMethodBuilder, int)
+            //}
         }
     }
 }
