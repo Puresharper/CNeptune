@@ -133,17 +133,10 @@ namespace CNeptune
             }
             return _method;
         }
-        
-        static private FieldDefinition Activation(this MethodDefinition method)
-        {
-            var _type = method.DeclaringType.Authority($"<Activation>").Type(method.IsConstructor ? $"<<Constructor>>" : $"<{method.Name}>", TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
-            foreach (var _parameter in method.GenericParameters) { _type.GenericParameters.Add(new GenericParameter(_parameter.Name, _type)); }
-            return _type.Field<Func<IntPtr>>("<Initialize>", FieldAttributes.Static | FieldAttributes.Public);
-        }
 
-        static private FieldDefinition Intermediate(this MethodDefinition method, MethodDefinition authentic, FieldDefinition activation)
+        static private FieldDefinition Intermediate(this MethodDefinition method, MethodDefinition authentic)
         {
-            var _intermediate = method.DeclaringType.Authority($"<Intermediate>").Type(method.IsConstructor ? $"<<Constructor>>" : $"<{method.Name}>", TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
+            var _intermediate = method.DeclaringType.Authority("<Intermediate>").Type(method.IsConstructor ? $"<<Constructor>>" : $"<{method.Name}>", TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
             foreach (var _parameter in method.GenericParameters) { _intermediate.GenericParameters.Add(new GenericParameter(_parameter.Name, _intermediate)); }
             var _field = _intermediate.Field<IntPtr>(Program.Pointer, FieldAttributes.Static | FieldAttributes.Public);
             var _initializer = _intermediate.Initializer();
@@ -174,7 +167,7 @@ namespace CNeptune
         static private void Manage(this MethodDefinition method)
         {
             var _authentic = method.Authentic();
-            var _intermediate = method.Intermediate(_authentic, method.Activation());
+            var _intermediate = method.Intermediate(_authentic);
             method.Body = new MethodBody(method);
             for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
             {
