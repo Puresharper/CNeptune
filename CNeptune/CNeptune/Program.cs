@@ -131,7 +131,10 @@ namespace CNeptune
                 {
                     CatchType = _exception.CatchType,
                     TryStart = _copy[_exception.TryStart],
-                    TryEnd = _copy[_exception.TryEnd]
+                    TryEnd = _copy[_exception.TryEnd],
+                    HandlerType = _exception.HandlerType,
+                    HandlerStart = _copy[_exception.HandlerStart],
+                    HandlerEnd = _copy[_exception.HandlerEnd]
                 });
             }
             return _method;
