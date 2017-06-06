@@ -188,7 +188,7 @@ namespace CNeptune
                     case 1: method.Body.Emit(OpCodes.Ldarg_1); break;
                     case 2: method.Body.Emit(OpCodes.Ldarg_2); break;
                     case 3: method.Body.Emit(OpCodes.Ldarg_3); break;
-                    default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[_index]); break;
+                    default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[method.IsStatic ? _index : _index - 1]); break;
                 }
             }
             if (method.GenericParameters.Count == 0)
