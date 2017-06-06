@@ -1,3 +1,4 @@
+[![NuGet](https://img.shields.io/nuget/v/cneptune.svg)](https://www.nuget.org/packages/CNeptune)
 # CNeptune
 
 CNeptune is an util based on mono.cecil to rewrite .net assembly to inject all the needs to control execution flow in order to help architects to build a productive and efficient architecture.
