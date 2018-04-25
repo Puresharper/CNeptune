@@ -35,7 +35,8 @@ namespace Mono.Cecil.Cil
             {
                 if (this.m_Signature != null) { throw new NotSupportedException(); }
                 this.m_Signature = new Dictionary<ParameterDefinition, ParameterDefinition>();
-                for (var _index = 0; _index < this.m_Method.Parameters.Count; _index++) { this.m_Signature.Add(this.m_Method.Parameters[_index], value[_index]); }
+                var _offset = m_Method.IsStatic ? 0 : 1;
+                for (var _index = 0; _index < this.m_Method.Parameters.Count; _index++) { this.m_Signature.Add(this.m_Method.Parameters[_index], value[_offset + _index]); }
             }
         }
 
