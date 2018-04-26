@@ -96,15 +96,15 @@ namespace CNeptune
             var _assembly = AssemblyDefinition.ReadAssembly(assembly, _readerParameters);
             var _isManaged = IsManagedByNeptune(_assembly);
             var _module = _assembly.MainModule;
-            var _neptuneTypeCount = 0;
+            var _hasNeptuneMethods = false;
             foreach (var _type in _module.GetTypes().ToArray())
             {
-                if (Program.Manage(_type, _isManaged ?? true) > 0) { _neptuneTypeCount++; }
+                _hasNeptuneMethods |= Program.Manage(_type, _isManaged ?? true);
             }
-            if (_neptuneTypeCount > 0)
+            if (_hasNeptuneMethods)
             {
                 _assembly.Attribute<HasNeptuneMethodsAttribute>();
-            _assembly.Write(assembly, new WriterParameters { WriteSymbols = true  });
+                _assembly.Write(assembly, new WriterParameters { WriteSymbols = true  });
             }
         }
         #region NeptuneAttribute
@@ -145,10 +145,10 @@ namespace CNeptune
             return method.Body == null || (method.IsConstructor && method.IsStatic);
         }
 
-        static private int Manage(TypeDefinition type, bool defaultTypeIsManaged)
+        static private bool Manage(TypeDefinition type, bool defaultTypeIsManaged)
         {
             foreach (var _type in type.NestedTypes) { if (_type.Name == Program.Neptune) { throw new InvalidOperationException("Assembly already rewritten by CNeptune"); } }
-            if (Program.Bypass(type)) { return 0; }
+            if (Program.Bypass(type)) { return false; }
             //todo Jens what about testing nested methods for NeptuneAttribute?
             bool? _typeIsManaged = null;
             for (var t = type; t != null && !_typeIsManaged.HasValue; t = t.DeclaringType)
@@ -182,7 +182,7 @@ namespace CNeptune
                 type.Field("<NeptuneMethodCount>", FieldAttributes.Public, _neptuneMethodCount);
             }
 
-            return _neptuneMethodCount;
+            return true;
         }
 
         private static void InsertTypeInstantiatedCall(TypeDefinition type, MethodDefinition initializer)
