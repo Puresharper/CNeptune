@@ -27,7 +27,7 @@ namespace CNeptune
         /// </list>
         /// </summary>
         /// <remarks>
-        /// Come in handy where  generic as CNeptune has a bug generating code for them
+        /// Come in handy for generic as CNeptune has a bug generating code for them
         /// </remarks>
         /// <param name="managed"></param>
         public NeptuneAttribute(bool managed)
