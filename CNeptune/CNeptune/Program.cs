@@ -25,11 +25,19 @@ namespace CNeptune
 
         static public void Main(string[] arguments)
         {
+            // If true do not overwrite input files
+            bool _dryRun = false;
             if (arguments == null) { throw new ArgumentNullException(); }
+            // An option for ease of debugging CNeptune where we don't overwrite input so we can do successive debug runs
+            if (arguments.Length > 0 && arguments[0].ToLower() == "/dryrun")
+            {
+                _dryRun = true;
+                arguments = arguments.Skip(1).ToArray();
+            }
             switch (arguments.Length)
             {
                 case 1:
-                    Program.Manage(arguments[0]);
+                    Program.Manage(arguments[0], _dryRun);
                     break;
                 case 2:
                     var _directory = string.Concat(Path.GetDirectoryName(arguments[0]), @"\");
@@ -45,9 +53,9 @@ namespace CNeptune
                             {
                                 switch (_type == null ? "Library" : _type.Value)
                                 {
-                                    case "Library": Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll")); return;
+                                    case "Library": Program.Manage(string.Concat(_directory, _element.Value, _name, ".dll"), _dryRun); return;
                                     case "WinExe":
-                                    case "Exe": Program.Manage(string.Concat(_directory, _element.Value, _name, ".exe")); return;
+                                    case "Exe": Program.Manage(string.Concat(_directory, _element.Value, _name, ".exe"), _dryRun); return;
                                     default: throw new NotSupportedException($"Unknown OutputType: {_type.Value}");
                                 }
                             }
@@ -58,8 +66,23 @@ namespace CNeptune
             }
         }
 
-        static private void Manage(string assembly)
+        static private void Manage(string assembly, bool dryRun)
         {
+            const string _pdbExtension = ".pdb";
+            if (dryRun)
+            {
+                var _tempDllFileName = Path.ChangeExtension(assembly, ".temp" + Path.GetExtension(assembly));
+                var _tempPdbFileName = Path.ChangeExtension(_tempDllFileName, _pdbExtension);
+                if (File.Exists(_tempDllFileName)) File.Delete(_tempDllFileName);
+                if (File.Exists(_tempPdbFileName)) File.Delete(_tempPdbFileName);
+                File.Copy(assembly, _tempDllFileName);
+                var _pdbFile = Path.ChangeExtension(assembly, _pdbExtension);
+                if (File.Exists(_pdbFile))
+                {
+                    File.Copy(_pdbFile, _tempPdbFileName);
+                }
+                assembly = _tempDllFileName;
+            }
             var _resolver = new DefaultAssemblyResolver();
             _resolver.AddSearchDirectory(Path.GetDirectoryName(assembly));
             var _assembly = AssemblyDefinition.ReadAssembly(assembly, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
