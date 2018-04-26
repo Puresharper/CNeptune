@@ -166,10 +166,19 @@ namespace CNeptune
             var _type = method.DeclaringType.Authority("<Authentic>");
             var _copy = new Copy(method);
             var _method = _type.Method(method.IsConstructor ? "<Constructor>" : method.Name, MethodAttributes.Static | MethodAttributes.Public);
-            foreach (var _parameter in method.GenericParameters) { _method.GenericParameters.Add(new GenericParameter(_parameter.Name, _method)); }
-            _copy.Genericity = _method.GenericParameters.ToArray();
+            _copy.TypeGenericity = _type.GenericParameters.ToArray();
+            foreach (var _parameter in method.GenericParameters) { _method.GenericParameters.Add(_parameter.Copy(_method)); }
+            _copy.MethodGenericity = _method.GenericParameters.ToArray();
             _method.ReturnType = _copy[method.ReturnType];
-            if (!method.IsStatic) { _method.Parameters.Add(new ParameterDefinition("this", ParameterAttributes.None, method.DeclaringType)); }
+            if (!method.IsStatic)
+            {
+                TypeReference _parameterType = method.DeclaringType;
+                if (_parameterType.HasGenericParameters)
+                {
+                    _parameterType = _parameterType.MakeGenericType(_type.GenericParameters);
+                }
+                _method.Parameters.Add(new ParameterDefinition("this", ParameterAttributes.None, _parameterType));
+            }
             foreach (var _parameter in method.Parameters) { _method.Add(new ParameterDefinition(_parameter.Name, _parameter.Attributes, _copy[_parameter.ParameterType])); }
             _copy.Signature = _method.Parameters.ToArray();
             var _body = _method.Body;
@@ -205,40 +214,62 @@ namespace CNeptune
             var _intermediate = method.DeclaringType.Authority("<Intermediate>").Type(method.IsConstructor ? $"<<Constructor>>" : $"<{method.Name}>", TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
             foreach (var _parameter in method.GenericParameters) { _intermediate.GenericParameters.Add(new GenericParameter(_parameter.Name, _intermediate)); }
             var _field = _intermediate.Field<IntPtr>(Program.Pointer, FieldAttributes.Static | FieldAttributes.Public);
+            FieldReference _fieldReference = _field;
+            MethodReference _authenticReference = authentic;
+            GenericInstanceType _authenticGenericType = null;
+            if (_intermediate.HasGenericParameters)
+            {
+                var _intermediateGenericType = _intermediate.MakeGenericType(_intermediate.GenericParameters);
+                _fieldReference = _intermediateGenericType.Reference(_fieldReference);
+                if (method.DeclaringType.HasGenericParameters)
+                {
+                    var _typeParameters = _intermediate.GenericParameters.Take(method.DeclaringType.GenericParameters.Count).ToArray();
+                    var _methodParameters = _intermediate.GenericParameters.Skip(method.DeclaringType.GenericParameters.Count).ToArray();
+                    _authenticGenericType = authentic.DeclaringType.MakeGenericType(_typeParameters);
+                    _authenticReference = _authenticGenericType.Reference(authentic, _intermediate.GenericParameters);
+                }
+                else if (method.HasGenericParameters)
+                {
+                    _authenticReference = authentic.MakeGenericMethod(_intermediate.GenericParameters);
+                }
+            }
             var _initializer = _intermediate.Initializer();
             var _variable = _initializer.Body.Variable<RuntimeMethodHandle>();
             _initializer.Body.Variable<Func<IntPtr>>();
-            if (_intermediate.GenericParameters.Count == 0)
+            // todo Jens fix generic method in generic type
+            if (method.DeclaringType.HasGenericParameters && method.HasGenericParameters)
             {
-                _initializer.Body.Emit(authentic);
-                _initializer.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                _initializer.Body.Emit(OpCodes.Stloc_0);
-                _initializer.Body.Emit(OpCodes.Ldloca_S, _variable);
-                _initializer.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                _initializer.Body.Emit(OpCodes.Stsfld, _field);
+                // work around for ldtoken _authenticReference not working correctly for generic method in generic type
+                var methodInstantiatingMethodReference = _initializer.Module.Import(typeof(CNeptuneBase.InstantiationListener).GetMethod(nameof(CNeptuneBase.InstantiationListener.MethodInstantiating)));
+                var _intermediateReference = _intermediate.MakeGenericType(_intermediate.GenericParameters);
+                _initializer.Body.Emit(OpCodes.Ldtoken, _intermediateReference);
+                _initializer.Body.Emit(OpCodes.Ldtoken, _authenticGenericType);
+                _initializer.Body.Emit(OpCodes.Call, _initializer.DeclaringType.Module.Import(Program.GetTypeFromHandle));
+                _initializer.Body.Emit(OpCodes.Call, _initializer.DeclaringType.Module.Import(methodInstantiatingMethodReference));
             }
             else
             {
-                _initializer.Body.Emit(authentic.MakeGenericMethod(_intermediate.GenericParameters));
-                _initializer.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
-                _initializer.Body.Emit(OpCodes.Stloc_0);
-                _initializer.Body.Emit(OpCodes.Ldloca_S, _variable);
-                _initializer.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
-                _initializer.Body.Emit(OpCodes.Stsfld, new FieldReference(_field.Name, _field.FieldType, _intermediate.MakeGenericType(_intermediate.GenericParameters)));
-
-                //TODO : IOC of AOP !? What the? in fact it will be used to be able to inject on method on demand but a late as possible.
-                //Action<MethodBase> _update;
-                //lock (AppDomain.CurrentDomain.Evidence.SyncRoot) { _update = AppDomain.CurrentDomain.GetData("<Neptune<Update>>") as Action<MethodBase>; }
-                //if (_update != null) { _update(...); }
+                _initializer.Body.Emit(_authenticReference);
             }
+            _initializer.Body.Emit(OpCodes.Callvirt, Program.GetMethodHandle);
+            _initializer.Body.Emit(OpCodes.Stloc_0);
+            _initializer.Body.Emit(OpCodes.Ldloca_S, _variable);
+            _initializer.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
+            _initializer.Body.Emit(OpCodes.Stsfld, _fieldReference);
+
+            //TODO : IOC of AOP !? What the? in fact it will be used to be able to inject on method on demand but a late as possible.
+            //Action<MethodBase> _update;
+            //lock (AppDomain.CurrentDomain.Evidence.SyncRoot) { _update = AppDomain.CurrentDomain.GetData("<Neptune<Update>>") as Action<MethodBase>; }
+            //if (_update != null) { _update(...); }
             _initializer.Body.Emit(OpCodes.Ret);
+            _initializer.Body.OptimizeMacros();
             return _field;
         }
 
         static private void Manage(this MethodDefinition method)
         {
             var _authentic = method.Authentic();
-            var _intermediate = method.Intermediate(_authentic);
+            FieldReference _intermediate = method.Intermediate(_authentic);
             method.Body = new MethodBody(method);
             for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
             {
@@ -251,21 +282,25 @@ namespace CNeptune
                     default: method.Body.Emit(OpCodes.Ldarg_S, method.Parameters[method.IsStatic ? _index : _index - 1]); break;
                 }
             }
-            if (method.GenericParameters.Count == 0)
+            MethodReference _authenticReference = _authentic;
+            if (method.DeclaringType.HasGenericParameters || method.HasGenericParameters)
             {
-                method.Body.Emit(OpCodes.Ldsfld, _intermediate);
-                method.Body.Emit(OpCodes.Calli, method.ReturnType, _authentic.Parameters);
+                var _genericParameters = method.DeclaringType.GenericParameters.Concat(method.GenericParameters).ToArray();
+                var _genericInstanceType = _intermediate.DeclaringType.MakeGenericType(_genericParameters);
+                _intermediate = _genericInstanceType.Reference(_intermediate);
+                if (method.DeclaringType.HasGenericParameters)
+                {
+                    _authenticReference = _genericInstanceType.Reference(_authenticReference, _genericParameters);
+                }
+                else if (method.HasGenericParameters)
+                {
+                    _authenticReference = _authenticReference.MakeGenericMethod(method.GenericParameters, _genericParameters);
+                }
             }
-            else
-            {
-                var _type = new GenericInstanceType(_intermediate.DeclaringType);
-                foreach (var _parameter in method.GenericParameters) { _type.GenericArguments.Add(_parameter); }
-                method.Body.Emit(OpCodes.Ldsfld, new FieldReference(_intermediate.Name, _intermediate.FieldType, _type));
-                var _method = new GenericInstanceMethod(_authentic);
-                foreach (var _parameter in method.GenericParameters) { _method.GenericArguments.Add(_parameter); }
-                method.Body.Emit(OpCodes.Calli, _method.ReturnType, _method.Parameters);
-            }
+            method.Body.Emit(OpCodes.Ldsfld, _intermediate);
+            method.Body.Emit(OpCodes.Calli, _authenticReference.ReturnType, _authenticReference.Parameters);
             method.Body.Emit(OpCodes.Ret);
+            method.Body.OptimizeMacros();
 
             ////async
             //if (method.Module.Import(typeof(IAsyncStateMachine)).IsAssignableFrom(method.DeclaringType) && method.Name == "MoveNext") // TODO : change method name test by reliable IAsyncStateMachine.MoveNext resolution.

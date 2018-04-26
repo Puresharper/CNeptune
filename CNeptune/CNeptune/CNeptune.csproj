@@ -73,6 +73,7 @@
     <Compile Include="Mono\Cecil\Cil\Copy.cs" />
     <Compile Include="Mono\Cecil\__AssemblyDefinition.cs" />
     <Compile Include="Mono\Cecil\__FieldDefinition.cs" />
+    <Compile Include="Mono\Cecil\__GenericInstanceType.cs" />
     <Compile Include="Mono\Cecil\__GenericParameter.cs" />
     <Compile Include="Mono\Cecil\__MethodBody.cs" />
     <Compile Include="Mono\Cecil\__MethodDefinition.cs" />
@@ -84,6 +85,7 @@
     <Compile Include="System\Argument.cs" />
     <Compile Include="System\Collections\Generic\__Dictionary.cs" />
     <Compile Include="System\Metadata.cs" />
+    <Compile Include="System\Collections\__Enumerable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CNeptune.snk" />

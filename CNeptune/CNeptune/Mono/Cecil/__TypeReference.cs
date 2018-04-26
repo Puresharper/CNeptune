@@ -14,5 +14,12 @@ namespace Mono.Cecil
             if (speculative.Interfaces.Any(_Type => _Type.Resolve() == _type)) { return true; }
             return false;
         }
+
+        static public GenericInstanceType MakeGenericType(this TypeReference type, IEnumerable<TypeReference> arguments)
+        {
+            var _type = new GenericInstanceType(type);
+            foreach (var _argument in arguments) { _type.GenericArguments.Add(_argument); }
+            return _type;
+        }
     }
 }
