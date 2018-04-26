@@ -98,6 +98,8 @@ namespace Mono.Cecil
             type.NestedTypes.Add(_type);
             _type.Attribute<CompilerGeneratedAttribute>();
             _type.Attribute<SerializableAttribute>();
+            foreach (var parameter in type.GenericParameters)
+                _type.GenericParameters.Add(parameter.Copy(_type));
             return _type;
         }
 
