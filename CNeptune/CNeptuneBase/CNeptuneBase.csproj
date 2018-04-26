@@ -47,7 +47,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ImplementationDetails\HasNeptuneMethodsAttribute.cs" />
     <Compile Include="NeptuneAttribute.cs" />
+    <Compile Include="ImplementationDetails\NeptuneMethodIndexAttribute.cs" />
+    <Compile Include="InstantiationListener.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

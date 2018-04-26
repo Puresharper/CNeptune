@@ -1,15 +1,20 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Xml;
 using System.Xml.Linq;
+using CNeptuneBase.ImplementationDetails;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Cecil.Pdb;
+using Mono.Cecil.Rocks;
 using MethodBase = System.Reflection.MethodBase;
 using MethodInfo = System.Reflection.MethodInfo;
 
+[assembly: DebuggerDisplay("{AttributeType.FullName}", Target = typeof(Mono.Cecil.CustomAttribute))]
 
 namespace CNeptune
 {
@@ -22,6 +27,7 @@ namespace CNeptune
         static private readonly MethodInfo GetMethodHandle = Metadata<MethodBase>.Property(_Method => _Method.MethodHandle).GetGetMethod();
         static private readonly MethodInfo GetFunctionPointer = Metadata<RuntimeMethodHandle>.Method(_Method => _Method.GetFunctionPointer());
         static private readonly MethodInfo CreateDelegate = Metadata.Method(() => Delegate.CreateDelegate(Argument<Type>.Value, Argument<MethodInfo>.Value));
+        static private readonly MethodInfo GetTypeFromHandle = System.Metadata.Method(() => Type.GetTypeFromHandle(Argument<RuntimeTypeHandle>.Value));
 
         static public void Main(string[] arguments)
         {
@@ -88,8 +94,16 @@ namespace CNeptune
             var _assembly = AssemblyDefinition.ReadAssembly(assembly, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
             var _isManaged = IsManagedByNeptune(_assembly);
             var _module = _assembly.MainModule;
-            foreach (var _type in _module.GetTypes().ToArray()) { Program.Manage(_type, _isManaged ?? true); }
+            var _neptuneTypeCount = 0;
+            foreach (var _type in _module.GetTypes().ToArray())
+            {
+                if (Program.Manage(_type, _isManaged ?? true) > 0) { _neptuneTypeCount++; }
+            }
+            if (_neptuneTypeCount > 0)
+            {
+                _assembly.Attribute<HasNeptuneMethodsAttribute>();
             _assembly.Write(assembly, new WriterParameters { WriteSymbols = true  });
+            }
         }
         #region NeptuneAttribute
         private static bool? IsManagedByNeptune(AssemblyDefinition assembly)
@@ -129,10 +143,10 @@ namespace CNeptune
             return method.Body == null || (method.IsConstructor && method.IsStatic);
         }
 
-        static private void Manage(TypeDefinition type, bool defaultTypeIsManaged)
+        static private int Manage(TypeDefinition type, bool defaultTypeIsManaged)
         {
             foreach (var _type in type.NestedTypes) { if (_type.Name == Program.Neptune) { throw new InvalidOperationException("Assembly already rewritten by CNeptune"); } }
-            if (Program.Bypass(type)) { return; }
+            if (Program.Bypass(type)) { return 0; }
             //todo Jens what about testing nested methods for NeptuneAttribute?
             bool? _typeIsManaged = null;
             for (var t = type; t != null && !_typeIsManaged.HasValue; t = t.DeclaringType)
@@ -140,12 +154,42 @@ namespace CNeptune
                 _typeIsManaged = IsManagedByNeptune(t);
             }
             var _defaultMethodIsManaged = _typeIsManaged ?? defaultTypeIsManaged;
+            var _neptuneMethodCount = 0;
+            MethodDefinition _initializer = null;
             foreach (var _method in type.Methods.ToArray())
             {
+                if (_method.IsConstructor && _method.IsStatic) { _initializer = _method; }
                 if (Program.Bypass(_method)) { continue; }
                 if (!(IsManagedByNeptune(_method) ?? _defaultMethodIsManaged)) { continue; }
-                Program.Manage(_method);
+                Program.Manage(_method, _neptuneMethodCount);
+                if (type.HasGenericParameters || _method.HasGenericParameters) { _neptuneMethodCount++; }
             }
+            if (_neptuneMethodCount > 0)
+            {
+                type.Attribute<HasNeptuneMethodsAttribute>();
+                if (_initializer != null)
+                {
+                    InsertTypeInstantiatedCall(type, _initializer);
+                }
+                else
+                {
+                    _initializer = type.Initializer();
+                    InsertTypeInstantiatedCall(type, _initializer);
+                    _initializer.Body.Emit(OpCodes.Ret);
+                }
+                type.Field("<NeptuneMethodCount>", FieldAttributes.Public, _neptuneMethodCount);
+            }
+
+            return _neptuneMethodCount;
+        }
+
+        private static void InsertTypeInstantiatedCall(TypeDefinition type, MethodDefinition initializer)
+        {
+            var typeInstantiatedMethodReference = initializer.Module.Import(typeof(CNeptuneBase.InstantiationListener).GetMethod(nameof(CNeptuneBase.InstantiationListener.TypeInstantiating)));
+            var _type = type.MakeGenericType(type.GenericParameters);
+            initializer.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Ldtoken, _type));
+            initializer.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Call, initializer.DeclaringType.Module.Import(Program.GetTypeFromHandle)));
+            initializer.Body.Instructions.Insert(2, Instruction.Create(OpCodes.Call, initializer.DeclaringType.Module.Import(typeInstantiatedMethodReference)));
         }
 
         static private TypeDefinition Authority(this TypeDefinition type)
@@ -161,7 +205,7 @@ namespace CNeptune
             return _authority.Type(name, TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.NestedPublic | TypeAttributes.BeforeFieldInit | TypeAttributes.SpecialName);
         }
         
-        static private MethodDefinition Authentic(this MethodDefinition method)
+        static private MethodDefinition Authentic(this MethodDefinition method, int neptuneMethodIndex)
         {
             var _type = method.DeclaringType.Authority("<Authentic>");
             var _copy = new Copy(method);
@@ -170,6 +214,10 @@ namespace CNeptune
             foreach (var _parameter in method.GenericParameters) { _method.GenericParameters.Add(_parameter.Copy(_method)); }
             _copy.MethodGenericity = _method.GenericParameters.ToArray();
             _method.ReturnType = _copy[method.ReturnType];
+            if (method.HasGenericParameters && _type.HasGenericParameters)
+            {
+                _method.Attribute(() => new NeptuneMethodIndexAttribute(neptuneMethodIndex));
+            }
             if (!method.IsStatic)
             {
                 TypeReference _parameterType = method.DeclaringType;
@@ -209,7 +257,7 @@ namespace CNeptune
             return _method;
         }
 
-        static private FieldDefinition Intermediate(this MethodDefinition method, MethodDefinition authentic)
+        static private FieldDefinition Intermediate(this MethodDefinition method, MethodDefinition authentic, int neptuneMethodIndex)
         {
             var _intermediate = method.DeclaringType.Authority("<Intermediate>").Type(method.IsConstructor ? $"<<Constructor>>" : $"<{method.Name}>", TypeAttributes.NestedPublic | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit);
             foreach (var _parameter in method.GenericParameters) { _intermediate.GenericParameters.Add(new GenericParameter(_parameter.Name, _intermediate)); }
@@ -219,6 +267,7 @@ namespace CNeptune
             GenericInstanceType _authenticGenericType = null;
             if (_intermediate.HasGenericParameters)
             {
+                _intermediate.Field("<NeptuneMethodIndex>", FieldAttributes.Public, neptuneMethodIndex);
                 var _intermediateGenericType = _intermediate.MakeGenericType(_intermediate.GenericParameters);
                 _fieldReference = _intermediateGenericType.Reference(_fieldReference);
                 if (method.DeclaringType.HasGenericParameters)
@@ -236,7 +285,7 @@ namespace CNeptune
             var _initializer = _intermediate.Initializer();
             var _variable = _initializer.Body.Variable<RuntimeMethodHandle>();
             _initializer.Body.Variable<Func<IntPtr>>();
-            // todo Jens fix generic method in generic type
+            // todo Jens fix generic method in generic type to us ldtoken
             if (method.DeclaringType.HasGenericParameters && method.HasGenericParameters)
             {
                 // work around for ldtoken _authenticReference not working correctly for generic method in generic type
@@ -256,6 +305,14 @@ namespace CNeptune
             _initializer.Body.Emit(OpCodes.Ldloca_S, _variable);
             _initializer.Body.Emit(OpCodes.Callvirt, Program.GetFunctionPointer);
             _initializer.Body.Emit(OpCodes.Stsfld, _fieldReference);
+            if (_intermediate.HasGenericParameters)
+            {
+                var methodInstantiatedMethodReference = _initializer.Module.Import(typeof(CNeptuneBase.InstantiationListener).GetMethod(nameof(CNeptuneBase.InstantiationListener.MethodInstantiated)));
+                var _intermediateReference = _intermediate.MakeGenericType(_intermediate.GenericParameters);
+                _initializer.Body.Emit(OpCodes.Ldtoken, _intermediateReference);
+                _initializer.Body.Emit(OpCodes.Call, _initializer.DeclaringType.Module.Import(Program.GetTypeFromHandle));
+                _initializer.Body.Emit(OpCodes.Call, _initializer.DeclaringType.Module.Import(methodInstantiatedMethodReference));
+            }
 
             //TODO : IOC of AOP !? What the? in fact it will be used to be able to inject on method on demand but a late as possible.
             //Action<MethodBase> _update;
@@ -266,10 +323,10 @@ namespace CNeptune
             return _field;
         }
 
-        static private void Manage(this MethodDefinition method)
+        static private void Manage(this MethodDefinition method, int neptuneMethodIndex)
         {
-            var _authentic = method.Authentic();
-            FieldReference _intermediate = method.Intermediate(_authentic);
+            var _authentic = method.Authentic(neptuneMethodIndex);
+            FieldReference _intermediate = method.Intermediate(_authentic, neptuneMethodIndex);
             method.Body = new MethodBody(method);
             for (var _index = 0; _index < _authentic.Parameters.Count; _index++)
             {
@@ -285,6 +342,7 @@ namespace CNeptune
             MethodReference _authenticReference = _authentic;
             if (method.DeclaringType.HasGenericParameters || method.HasGenericParameters)
             {
+                method.Attribute(() => new NeptuneMethodIndexAttribute(neptuneMethodIndex));
                 var _genericParameters = method.DeclaringType.GenericParameters.Concat(method.GenericParameters).ToArray();
                 var _genericInstanceType = _intermediate.DeclaringType.MakeGenericType(_genericParameters);
                 _intermediate = _genericInstanceType.Reference(_intermediate);
