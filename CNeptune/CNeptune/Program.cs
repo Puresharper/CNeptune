@@ -91,7 +91,9 @@ namespace CNeptune
             }
             var _resolver = new DefaultAssemblyResolver();
             _resolver.AddSearchDirectory(Path.GetDirectoryName(assembly));
-            var _assembly = AssemblyDefinition.ReadAssembly(assembly, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
+            var _hasPdbFile = File.Exists(Path.ChangeExtension(assembly, _pdbExtension));
+            var _readerParameters = new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = _hasPdbFile, ReadingMode = ReadingMode.Immediate };
+            var _assembly = AssemblyDefinition.ReadAssembly(assembly, _readerParameters);
             var _isManaged = IsManagedByNeptune(_assembly);
             var _module = _assembly.MainModule;
             var _neptuneTypeCount = 0;
