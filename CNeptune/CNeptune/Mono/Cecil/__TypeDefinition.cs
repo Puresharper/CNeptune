@@ -47,6 +47,16 @@ namespace Mono.Cecil
             return _field;
         }
 
+        static public FieldDefinition Field<T>(this TypeDefinition type, string name, FieldAttributes attributes, T constant)
+        {
+            var _field = new FieldDefinition(name, attributes | FieldAttributes.Literal, type.Module.Import(typeof(T)));
+            _field.Constant = constant;
+            type.Fields.Add(_field);
+            _field.Attribute<CompilerGeneratedAttribute>();
+            _field.Attribute(() => new DebuggerBrowsableAttribute(DebuggerBrowsableState.Never));
+            return _field;
+        }
+
         static public MethodDefinition Method(this TypeDefinition type, string name, MethodAttributes attributes, TypeReference @return)
         {
             var _method = new MethodDefinition(name, attributes, @return);
@@ -98,6 +108,8 @@ namespace Mono.Cecil
             type.NestedTypes.Add(_type);
             _type.Attribute<CompilerGeneratedAttribute>();
             _type.Attribute<SerializableAttribute>();
+            foreach (var parameter in type.GenericParameters)
+                _type.GenericParameters.Add(parameter.Copy(_type));
             return _type;
         }
 

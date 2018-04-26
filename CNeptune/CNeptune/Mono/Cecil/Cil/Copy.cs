@@ -8,10 +8,12 @@ namespace Mono.Cecil.Cil
     public class Copy
     {
         private MethodDefinition m_Method;
-        private Dictionary<GenericParameter, GenericParameter> m_Genericity;
+        private Dictionary<GenericParameter, GenericParameter> m_Genericity = new Dictionary<GenericParameter, GenericParameter>();
         private Dictionary<ParameterDefinition, ParameterDefinition> m_Signature;
         private Dictionary<VariableDefinition, VariableDefinition> m_Variation;
         private Dictionary<Instruction, Instruction> m_Dictionary;
+        private bool m_HasTypeGenericty;
+        private bool m_HasMethodGenericty;
 
         public Copy(MethodDefinition method)
         {
@@ -19,12 +21,23 @@ namespace Mono.Cecil.Cil
             this.m_Dictionary = new Dictionary<Instruction, Instruction>();
         }
 
-        public GenericParameter[] Genericity
+        public GenericParameter[] TypeGenericity
         {
             set
             {
-                if (this.m_Genericity != null) { throw new NotSupportedException(); }
-                this.m_Genericity = new Dictionary<GenericParameter, GenericParameter>();
+                if (m_HasTypeGenericty) { throw new NotSupportedException(); }
+                if (m_HasMethodGenericty) { throw new NotSupportedException(); }
+                m_HasTypeGenericty = true;
+                for (var _index = 0; _index < this.m_Method.DeclaringType.GenericParameters.Count; _index++) { this.m_Genericity.Add(this.m_Method.DeclaringType.GenericParameters[_index], value[_index]); }
+            }
+        }
+
+        public GenericParameter[] MethodGenericity
+        {
+            set
+            {
+                if (m_HasMethodGenericty) { throw new NotSupportedException(); }
+                m_HasMethodGenericty = true;
                 for (var _index = 0; _index < this.m_Method.GenericParameters.Count; _index++) { this.m_Genericity.Add(this.m_Method.GenericParameters[_index], value[_index]); }
             }
         }
@@ -35,7 +48,8 @@ namespace Mono.Cecil.Cil
             {
                 if (this.m_Signature != null) { throw new NotSupportedException(); }
                 this.m_Signature = new Dictionary<ParameterDefinition, ParameterDefinition>();
-                for (var _index = 0; _index < this.m_Method.Parameters.Count; _index++) { this.m_Signature.Add(this.m_Method.Parameters[_index], value[_index]); }
+                var _offset = m_Method.IsStatic ? 0 : 1;
+                for (var _index = 0; _index < this.m_Method.Parameters.Count; _index++) { this.m_Signature.Add(this.m_Method.Parameters[_index], value[_offset + _index]); }
             }
         }
 
@@ -53,9 +67,47 @@ namespace Mono.Cecil.Cil
         {
             get
             {
-                if (type is GenericParameter) { return this.m_Genericity.TryGetValue(type as GenericParameter) ?? type; }
+                var _newType = ReplaceGenericTypes(type);
+                if (_newType != null)
+                {
+                    return _newType;
+                }
                 return type;
             }
+        }
+
+        private TypeReference ReplaceGenericTypes(TypeReference type)
+        {
+            if (type is GenericParameter) { return this.m_Genericity.TryGetValue(type as GenericParameter) ?? type; }
+            if (type is GenericInstanceType _genericType)
+            {
+                List<TypeReference> _newArgumentTypes = null;
+                for (var _index = 0; _index < _genericType.GenericArguments.Count; _index++)
+                {
+                    var _newArgumentType = ReplaceGenericTypes(_genericType.GenericArguments[_index]);
+                    if (_newArgumentType != null)
+                    {
+                        if (_newArgumentTypes == null) _newArgumentTypes = new List<TypeReference>();
+                        for (int i = _newArgumentTypes.Count; i < _index; i++)
+                        {
+                            _newArgumentTypes.Add(_genericType.GenericArguments[i]);
+                        }
+                        _newArgumentTypes.Add(_newArgumentType);
+                    }
+                }
+
+                if (_newArgumentTypes != null)
+                {
+                    for (int i = _newArgumentTypes.Count; i < _genericType.GenericArguments.Count; i++)
+                    {
+                        _newArgumentTypes.Add(_genericType.GenericArguments[i]);
+                    }
+
+                    return _genericType.ElementType.MakeGenericType(_newArgumentTypes);
+                }
+            }
+
+            return null;
         }
 
         public FieldReference this[FieldReference field]
