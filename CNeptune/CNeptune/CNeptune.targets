@@ -7,6 +7,6 @@
     </BuildDependsOn>
   </PropertyGroup>
   <Target Name="CNeptune">
-    <Exec Command="&quot;$(SolutionDir)packages\CNeptune.1.0.0\build\CNeptune.exe&quot; &quot;$(ProjectPath)&quot; &quot;$(Configuration)&quot;" />
+    <Exec Command="&quot;$(SolutionDir)packages\CNeptune.1.2.x\build\CNeptune.exe&quot; &quot;$(ProjectPath)&quot; &quot;$(Configuration)&quot;" />
   </Target>
 </Project>
