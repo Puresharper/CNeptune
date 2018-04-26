@@ -63,10 +63,38 @@ namespace CNeptune
             var _resolver = new DefaultAssemblyResolver();
             _resolver.AddSearchDirectory(Path.GetDirectoryName(assembly));
             var _assembly = AssemblyDefinition.ReadAssembly(assembly, new ReaderParameters() { AssemblyResolver = _resolver, ReadSymbols = true, ReadingMode = ReadingMode.Immediate });
+            var _isManaged = IsManagedByNeptune(_assembly);
             var _module = _assembly.MainModule;
-            foreach (var _type in _module.GetTypes().ToArray()) { Program.Manage(_type); }
+            foreach (var _type in _module.GetTypes().ToArray()) { Program.Manage(_type, _isManaged ?? true); }
             _assembly.Write(assembly, new WriterParameters { WriteSymbols = true  });
         }
+        #region NeptuneAttribute
+        private static bool? IsManagedByNeptune(AssemblyDefinition assembly)
+        {
+            var neptuneAttribute = assembly.CustomAttributes.FirstOrDefault(a => IsSameType(a.AttributeType, Metadata<NeptuneAttribute>.Type));
+            var value = neptuneAttribute?.ConstructorArguments[0].Value;
+            return (bool?) value;
+        }
+
+        private static bool? IsManagedByNeptune(TypeDefinition type)
+        {
+            var neptuneAttribute = type.CustomAttributes.FirstOrDefault(a => IsSameType(a.AttributeType, Metadata<NeptuneAttribute>.Type));
+            var value = neptuneAttribute?.ConstructorArguments[0].Value;
+            return (bool?) value;
+        }
+
+        private static bool? IsManagedByNeptune(MethodDefinition method)
+        {
+            var neptuneAttribute = method.CustomAttributes.FirstOrDefault(a => IsSameType(a.AttributeType, Metadata<NeptuneAttribute>.Type));
+            var value = neptuneAttribute?.ConstructorArguments[0].Value;
+            return (bool?) value;
+        }
+
+        private static bool IsSameType(TypeReference a, Type b)
+        {
+            return a.FullName == b.FullName;
+        }
+        #endregion
 
         static private bool Bypass(TypeDefinition type)
         {
@@ -78,12 +106,21 @@ namespace CNeptune
             return method.Body == null || (method.IsConstructor && method.IsStatic);
         }
 
-        static private void Manage(TypeDefinition type)
+        static private void Manage(TypeDefinition type, bool defaultTypeIsManaged)
         {
+            foreach (var _type in type.NestedTypes) { if (_type.Name == Program.Neptune) { throw new InvalidOperationException("Assembly already rewritten by CNeptune"); } }
             if (Program.Bypass(type)) { return; }
+            //todo Jens what about testing nested methods for NeptuneAttribute?
+            bool? _typeIsManaged = null;
+            for (var t = type; t != null && !_typeIsManaged.HasValue; t = t.DeclaringType)
+            {
+                _typeIsManaged = IsManagedByNeptune(t);
+            }
+            var _defaultMethodIsManaged = _typeIsManaged ?? defaultTypeIsManaged;
             foreach (var _method in type.Methods.ToArray())
             {
                 if (Program.Bypass(_method)) { continue; }
+                if (!(IsManagedByNeptune(_method) ?? _defaultMethodIsManaged)) { continue; }
                 Program.Manage(_method);
             }
         }
